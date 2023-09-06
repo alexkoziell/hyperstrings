@@ -26,8 +26,8 @@ class Hypergraph:
     """
 
     vertices: set[int]
-    vertex_sources: dict[int, set[int]]
-    vertex_targets: dict[int, set[int]]
+    vertex_sources: dict[int, set[tuple[int, int]]]
+    vertex_targets: dict[int, set[tuple[int, int]]]
     vertex_labels: dict[int, str]
 
     hyperedges: set[int]
@@ -53,3 +53,43 @@ class Hypergraph:
         self.hyperedges.add(hyperedge_id)
         self.hyperedge_labels[hyperedge_id] = label
         return hyperedge_id
+
+    def set_hyperedge_sources(self, hyperedge: int,
+                              vertices: list[int]) -> None:
+        """Set the sources of a hyperedge.
+
+        Vertex targets are updated appropriately.
+        """
+        self.hyperedge_sources[hyperedge] = vertices
+        for port, vertex in enumerate(vertices):
+            self.vertex_targets[vertex].add((hyperedge, port))
+
+    def set_hyperedge_targets(self, hyperedge: int,
+                              vertices: list[int]) -> None:
+        """Set the targets of a hyperedge.
+
+        Vertex sources are updated appropriately.
+        """
+        self.hyperedge_targets[hyperedge] = vertices
+        for port, vertex in enumerate(vertices):
+            self.vertex_sources[vertex].add((hyperedge, port))
+
+    def set_vertex_sources(self, vertex: int,
+                           hyperedges_and_ports: set[tuple[int, int]]) -> None:
+        """Set the sources of a vertex.
+
+        Hyperedge targets are updated appropriately.
+        """
+        self.vertex_sources[vertex] = hyperedges_and_ports
+        for hyperedge, port in hyperedges_and_ports:
+            self.hyperedge_targets[hyperedge][port] = vertex
+
+    def set_vertex_targets(self, vertex: int,
+                           hyperedges_and_ports: set[tuple[int, int]]) -> None:
+        """Set the targets of a vertex.
+
+        Hyperedge sources are updated appropriately.
+        """
+        self.vertex_targets[vertex] = hyperedges_and_ports
+        for hyperedge, port in hyperedges_and_ports:
+            self.hyperedge_sources[hyperedge][port] = vertex
