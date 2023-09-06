@@ -37,3 +37,19 @@ class Hypergraph:
 
     inputs: list[int]
     outputs: list[int]
+
+    def add_vertex(self, label: str) -> int:
+        """Add a vertex to the hypergraph."""
+        # Give the vertex a unique integer identifier
+        vertex_id = max(self.vertices) + 1
+        self.vertices.add(vertex_id)
+        self.vertex_labels[vertex_id] = label
+        return vertex_id
+
+    def add_hyperedge(self, label: str) -> int:
+        """Add a hyperedge to the hypergraph."""
+        # Give the hyperedge a unique integer identifier
+        hyperedge_id = max(self.hyperedges) + 1
+        self.hyperedges.add(hyperedge_id)
+        self.hyperedge_labels[hyperedge_id] = label
+        return hyperedge_id
