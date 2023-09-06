@@ -437,3 +437,18 @@ class Hypergraph:
             print([self.hyperedge_labels[hid] for hid in hyperedge_layer])
         print([self.vertex_labels[vid] for vid in layers[-1]])
         print('^ output ^')
+
+    def __repr__(self) -> str:
+        """Return term notation for layer decomposition of this hypergraph."""
+        layers = self.layer_decomposition()
+
+        layer_reprs = (
+            ('(' if len(layer) > 1 else '')
+            + ' ⨂ '.join(self.hyperedge_labels[hyperedge]
+                         for hyperedge in layer)
+            + (')' if len(layer) > 1 else '')
+            for layer in layers[1::2])
+
+        repr = ' ⨟ '.join(layer_reprs)
+
+        return repr
