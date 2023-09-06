@@ -213,6 +213,34 @@ class Hypergraph:
                 self.vertex_targets[vertex].difference_update(remove_targets)
                 self.vertex_targets[vertex].update(add_targets)
 
+                # If any vertex in the most recent vertex layer is an output,
+                # traverse the next hyperedge layer with an identity hyperedge
+                for port, vertex in enumerate(self.outputs):
+                    if vertex in layers[-1]:
+                        # Add a new vertex to be placed
+                        # in the next vertex layer
+                        vertex_label = self.vertex_labels[vertex]
+                        new_vertex = self.add_vertex(vertex_label)
+                        unplaced_vertices.add(new_vertex)
+                        # Add an identity hyperedge to connect
+                        # the orignal vertex to the new vertex
+                        identity = self.add_hyperedge(f'id_{vertex_label}')
+
+                        # The only source vertex of this identity hyperedge is
+                        # the original vertex that occured in the previous
+                        # layer, hence it is ready to be placed
+                        ready_hyperedges.append(identity)
+
+                        # Update the connectivity information for the original
+                        # vertex, new vertex and identity hyperedge
+                        self.set_vertex_targets(vertex, {(identity, 0)})
+                        self.set_vertex_sources(new_vertex, {(identity, 0)})
+                        self.set_hyperedge_sources(identity, [vertex])
+                        self.set_hyperedge_targets(identity, [new_vertex])
+
+                        # Update hypergraph output information
+                        self.outputs[port] = new_vertex
+
             # Next hyperedge layer is now finished,
             # so mark its hyperedges as placed
             unplaced_hyperedges.difference_update(ready_hyperedges)
