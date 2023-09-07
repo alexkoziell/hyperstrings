@@ -452,3 +452,75 @@ class Hypergraph:
         repr = ' ⨟ '.join(layer_reprs)
 
         return repr
+
+    @classmethod
+    def from_yarrow(cls, yarrow_diagram) -> Hypergraph:
+        """Create a hypergraph from a yarrow diagram."""
+        G = yarrow_diagram.G
+
+        # Vertices and their labels
+        vertices = set(range(G.wn.source))
+        vertex_labels = {i: str(G.wn.table[i]) for i in range(G.wn.source)}
+
+        # Hyperedges and their labels
+        hyperedges = set(range(G.xn.source))
+        hyperedge_labels = {i: str(G.xn.table[i]) for i in range(G.xn.source)}
+
+        # Vertex -> hyperedge connections
+        vertex_targets = {
+            vertex: {
+                (G.xi.table[i], G.pi.table[i])
+                for i in range(G.xi.source) if G.wi.table[i] == vertex
+            } for vertex in vertices
+        }
+        hyperedge_sources = {}
+        for hyperedge in hyperedges:
+            sources_and_ports = sorted(
+                (
+                    (G.wi.table[i], G.pi.table[i])
+                    for i in range(G.wi.source)
+                    if G.xi.table[i] == hyperedge
+                ),
+                key=lambda wp: wp[1]
+            )
+            hyperedge_sources[hyperedge] = [sp[0] for sp in sources_and_ports]
+
+        # Hyperedge -> vertex connections
+        vertex_sources = {
+            vertex: {
+                (G.xo.table[i], G.po.table[i])
+                for i in range(G.xo.source) if G.wo.table[i] == vertex
+            } for vertex in vertices
+        }
+        hyperedge_targets = {}
+        for hyperedge in hyperedges:
+            sources_and_ports = sorted(
+                (
+                    (G.wo.table[i], G.po.table[i])
+                    for i in range(G.wo.source)
+                    if G.xo.table[i] == hyperedge
+                ),
+                key=lambda wp: wp[1]
+            )
+            hyperedge_targets[hyperedge] = [sp[0] for sp in sources_and_ports]
+
+        # Inputs and outputs
+        s = yarrow_diagram.s
+        t = yarrow_diagram.t
+        inputs = [s.table[i] for i in range(s.source)]
+        outputs = [t.table[i] for i in range(t.source)]
+
+        return cls(
+            vertices,
+            vertex_sources,
+            vertex_targets,
+            vertex_labels,
+
+            hyperedges,
+            hyperedge_sources,
+            hyperedge_targets,
+            hyperedge_labels,
+
+            inputs,
+            outputs
+        )
