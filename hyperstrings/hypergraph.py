@@ -47,6 +47,53 @@ class Hypergraph:
     hyperedge_coords: dict[int, tuple[float, float]] = field(
         default_factory=dict)
 
+    def change_vertex_index(self, vertex: int, new_index: int) -> None:
+        """Change the integer identitifier of a vertex."""
+        assert new_index not in self.vertices
+        self.vertices.remove(vertex)
+        self.vertices.add(new_index)
+        self.vertex_sources[new_index] = self.vertex_sources.pop(vertex)
+        self.vertex_targets[new_index] = self.vertex_targets.pop(vertex)
+        self.vertex_labels[new_index] = self.vertex_labels.pop(vertex)
+        for hyperedge, port in self.vertex_sources[new_index]:
+            self.hyperedge_targets[hyperedge][port] = new_index
+        for hyperedge, port in self.vertex_targets[new_index]:
+            self.hyperedge_sources[hyperedge][port] = new_index
+        if vertex in self.inputs:
+            self.inputs = [new_index if v == vertex else v
+                           for v in self.inputs]
+        if vertex in self.outputs:
+            self.outputs = [new_index if v == vertex else v
+                            for v in self.outputs]
+
+    def change_hyperedge_index(self, hyperedge: int, new_index: int) -> None:
+        """Change the integer identitifier of a hyperedge."""
+        assert new_index not in self.hyperedges
+        self.hyperedges.remove(hyperedge)
+        self.hyperedges.add(new_index)
+        sources = self.hyperedge_sources.pop(hyperedge)
+        targets = self.hyperedge_targets.pop(hyperedge)
+        self.hyperedge_sources[new_index] = sources
+        self.hyperedge_targets[new_index] = targets
+        self.hyperedge_labels[new_index] = self.hyperedge_labels.pop(hyperedge)
+        for port, vertex in enumerate(sources):
+            self.vertex_targets[vertex].remove((hyperedge, port))
+            self.vertex_targets[vertex].add((new_index, port))
+        for port, vertex in enumerate(targets):
+            self.vertex_sources[vertex].remove((hyperedge, port))
+            self.vertex_sources[vertex].add((new_index, port))
+
+    def reset_indices(self) -> None:
+        """Reset vertex and hyperedge identifiers to make them contigious."""
+        vertices = sorted(self.vertices)
+        for i, vertex in enumerate(vertices):
+            if vertex != i:
+                self.change_vertex_index(vertex, i)
+        hyperedges = sorted(self.hyperedges)
+        for i, hyperedge in enumerate(hyperedges):
+            if hyperedge != i:
+                self.change_hyperedge_index(hyperedge, i)
+
     @property
     def normal_form(self) -> Hypergraph:
         """Remove all identity hyperedges."""
@@ -80,6 +127,15 @@ class Hypergraph:
 
         self.vertex_sources[vertex1].update(vertex2_sources)
         self.vertex_targets[vertex1].update(vertex2_targets)
+
+        if vertex2 in self.inputs:
+            self.inputs = [
+                vertex1 if v == vertex2 else v for v in self.inputs
+            ]
+        if vertex2 in self.outputs:
+            self.outputs = [
+                vertex1 if v == vertex2 else v for v in self.outputs
+            ]
 
         self.vertex_labels.pop(vertex2)
         self.vertices.remove(vertex2)
@@ -158,10 +214,12 @@ class Hypergraph:
 
         # Input and zero-source vertices form the first layer
         layers: list[list[int]] = [self.inputs.copy()]
+        zero_source_vertices = set()
         for vertex_id in unplaced_vertices:
             if len(self.vertex_sources[vertex_id]) == 0:
                 layers[0].append(vertex_id)
-                unplaced_vertices.remove(vertex_id)
+                zero_source_vertices.add(vertex_id)
+        unplaced_vertices -= zero_source_vertices
 
         # Place the remaining hyperedges and vertices in alternating layers
         while len(unplaced_vertices) + len(unplaced_hyperedges) > 0:
@@ -438,20 +496,20 @@ class Hypergraph:
         print([self.vertex_labels[vid] for vid in layers[-1]])
         print('^ output ^')
 
-    def __repr__(self) -> str:
+    def term_decomposition(self) -> str:
         """Return term notation for layer decomposition of this hypergraph."""
         layers = self.layer_decomposition()
 
-        layer_reprs = (
+        layer_terms = (
             ('(' if len(layer) > 1 else '')
             + ' ⨂ '.join(self.hyperedge_labels[hyperedge]
                          for hyperedge in layer)
             + (')' if len(layer) > 1 else '')
             for layer in layers[1::2])
 
-        repr = ' ⨟ '.join(layer_reprs)
+        term_decomposition = ' ⨟ '.join(layer_terms)
 
-        return repr
+        return term_decomposition
 
     @classmethod
     def from_yarrow(cls, yarrow_diagram) -> Hypergraph:
@@ -524,3 +582,63 @@ class Hypergraph:
             inputs,
             outputs
         )
+
+    def to_yarrow(self, normal_form: bool = True):
+        """Create a yarrow diagram from this hypergraph."""
+        from yarrow import FiniteFunction, BipartiteMultigraph, Diagram
+        hypergraph = self.normal_form if normal_form else self
+        hypergraph.reset_indices()
+
+        num_vertices = len(hypergraph.vertices)  # G(W)
+        num_hyperedges = len(hypergraph.hyperedges)  # G(X)
+
+        # Inputs and outputs
+        s = FiniteFunction(num_vertices, hypergraph.inputs)
+        t = FiniteFunction(num_vertices, hypergraph.outputs)
+
+        # Vertex labels
+        vertex_labels = list(set(hypergraph.vertex_labels.values()))
+        wn = FiniteFunction(
+            len(vertex_labels),
+            [vertex_labels.index(hypergraph.vertex_labels[vertex])
+             for vertex in range(num_vertices)]
+        )
+
+        # Hyperedge labels
+        hyperedge_labels = list(set(hypergraph.hyperedge_labels.values()))
+        xn = FiniteFunction(
+            len(hyperedge_labels),
+            [hyperedge_labels.index(hypergraph.hyperedge_labels[hyperedge])
+             for hyperedge in range(num_hyperedges)]
+        )
+
+        # Vertex -> hyperedge connections
+        input_connections: list[tuple[int, int, int]] = []
+        for hyperedge in hypergraph.hyperedges:
+            for port, vertex in enumerate(
+                    hypergraph.hyperedge_sources[hyperedge]):
+                input_connections.append((vertex, hyperedge, port))
+        wi = FiniteFunction(num_vertices,
+                            [vhp[0] for vhp in input_connections])
+        xi = FiniteFunction(num_hyperedges,
+                            [vhp[1] for vhp in input_connections])
+        pi = FiniteFunction(None, [vhp[2] for vhp in input_connections])
+
+        # Hyperedge -> vertex connections
+        output_connections: list[tuple[int, int, int]] = []
+        for hyperedge in hypergraph.hyperedges:
+            for port, vertex in enumerate(
+                    hypergraph.hyperedge_targets[hyperedge]):
+                output_connections.append((vertex, hyperedge, port))
+        wo = FiniteFunction(num_vertices,
+                            [vhp[0] for vhp in output_connections])
+        xo = FiniteFunction(num_hyperedges,
+                            [vhp[1] for vhp in output_connections])
+        po = FiniteFunction(None, [vhp[2] for vhp in output_connections])
+
+        G = BipartiteMultigraph(wi, wo, xi, xo, wn, pi, po, xn)
+
+        yarrow_diagram = Diagram(s, t, G)
+
+        # TODO: keep track of labels
+        return yarrow_diagram
