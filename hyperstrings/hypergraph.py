@@ -602,16 +602,20 @@ class Hypergraph:
 
         for hyperedge, coords in self.hyperedge_coords.items():
             is_identity = self.hyperedge_labels[hyperedge].startswith('id')
-            is_cap = self.hyperedge_labels[hyperedge].startswith('cap')
-            is_cup = self.hyperedge_labels[hyperedge].startswith('cup')
-            box_width = 0 if is_identity else 0.5
-            box_height = 0 if is_identity else 0.5
+            is_cap = self.hyperedge_labels[hyperedge].startswith('cap_')
+            is_cup = self.hyperedge_labels[hyperedge].startswith('cup_')
+            is_spider = self.hyperedge_labels[hyperedge].startswith('spider_')
+            box_width = 0 if is_identity or is_spider else 0.5
+            box_height = 0 if is_identity or is_spider else 0.5
             cx, cy = coords
             x = cx - box_width / 2
             y = cy - box_height / 2
-            ax.add_patch(Rectangle((x, y), box_width, box_height,
-                                   alpha=0 if is_cap or is_cup else 1))
-            if not (is_identity or is_cap or is_cup):
+            if is_spider:
+                ax.add_patch(Circle(coords, 0.05, fc='black'))
+            else:
+                ax.add_patch(Rectangle((x, y), box_width, box_height,
+                                       alpha=0 if is_cap or is_cup else 1))
+            if not (is_identity or is_cap or is_cup or is_spider):
                 ax.annotate(self.hyperedge_labels[hyperedge],
                             (cx, cy),
                             ha='center', va='center')
