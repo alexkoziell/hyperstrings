@@ -275,8 +275,10 @@ class Hypergraph:
         return is_monogamous
 
     def children(self, vertex: int,
-                 visited_children: set[int] = set()) -> set[int]:
-        """Return set of children of a vertex."""
+                 visited_children: set[int] | None = None) -> set[int]:
+        """Return the set of children of a vertex."""
+        if visited_children is None:
+            visited_children = set()
         new_children: set[int] = set()
         target_hyperedges = set(
             hyperedge for hyperedge, _ in self.vertex_targets[vertex])
@@ -294,6 +296,14 @@ class Hypergraph:
                 *(self.children(vertex, visited_children)
                   for vertex in new_children)
             )
+
+    def is_acyclic(self) -> bool:
+        """Return whether this hypergraph is acyclic."""
+        for vertex in self.vertices:
+            for child_vertex in self.children(vertex):
+                if vertex in self.children(child_vertex):
+                    return False
+        return True
 
     def layer_decomposition(self) -> list[list[int]]:
         """Decompose this hypergraph into layers.
