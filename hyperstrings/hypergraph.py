@@ -47,6 +47,23 @@ class Hypergraph:
     hyperedge_coords: dict[int, tuple[float, float]] = field(
         default_factory=dict)
 
+    def wires(self):
+        """Return a set of hyperedge port to vertex connections.
+
+        Wires are in the following format:
+            `(vertex, port, hyperedge)`
+        The direction of the wire is given by the sign of `port`: if `port` is
+        negative, the wire connects a vertex to a hyperedge source port. If
+        `port` is positive, the wire connects a hyperedge target port to a
+        vertex.
+        """
+        wires = set()
+        for hyperedge in self.hyperedges:
+            for port, vertex in enumerate(self.hyperedge_sources[hyperedge]):
+                wires.add((vertex, -port, hyperedge))
+            for port, vertex in enumerate(self.hyperedge_targets[hyperedge]):
+                wires.add((vertex, port, hyperedge))
+
     def change_vertex_index(self, vertex: int, new_index: int) -> None:
         """Change the integer identitifier of a vertex."""
         assert new_index not in self.vertices
@@ -642,3 +659,42 @@ class Hypergraph:
 
         # TODO: keep track of labels
         return yarrow_diagram
+
+    def to_discopy(self, normal_form: bool = True):
+        """Create a discopy hypergraph from this hypergraph."""
+        from discopy.frobenius import Box, Ob, Ty
+        from discopy.frobenius import Hypergraph as DCPHypergraph
+
+        hypergraph = self.normal_form if normal_form else self
+
+        dom = Ty(*(Ob(hypergraph.vertex_labels[vertex])
+                   for vertex in hypergraph.inputs))
+        cod = Ty(*(Ob(hypergraph.vertex_labels[vertex])
+                   for vertex in hypergraph.outputs))
+
+        boxes = []
+        wires = [vertex for vertex in hypergraph.inputs]
+
+        for hyperedge in hypergraph.hyperedges:
+            box_dom = Ty(*(Ob(hypergraph.vertex_labels[vertex])
+                         for vertex
+                         in hypergraph.hyperedge_sources[hyperedge]))
+            box_cod = Ty(*(Ob(hypergraph.vertex_labels[vertex])
+                         for vertex
+                         in hypergraph.hyperedge_targets[hyperedge]))
+            boxes.append(Box(hypergraph.hyperedge_labels[hyperedge],
+                             box_dom, box_cod))
+
+            wires += [vertex for vertex
+                      in hypergraph.hyperedge_sources[hyperedge]]
+            wires += [vertex for vertex
+                      in hypergraph.hyperedge_targets[hyperedge]]
+
+        wires += [vertex for vertex in hypergraph.outputs]
+
+        spider_types = {vertex: Ty(hypergraph.vertex_labels[vertex])
+                        for vertex in hypergraph.vertices}
+
+        return DCPHypergraph(
+            dom, cod, boxes, tuple(wires), spider_types
+        )
