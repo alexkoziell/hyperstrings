@@ -339,6 +339,8 @@ class Hypergraph:
                     hypergraph.vertex_sources[new_vertex2] = {(cap, 1)}
                     hypergraph.hyperedge_targets[cap] = [
                         new_vertex1, new_vertex2]
+                    hypergraph.vertex_targets[new_vertex2].add(
+                        (hyperedge, port))
                     hypergraph.hyperedge_sources[hyperedge][port] = new_vertex2
                     return hypergraph.make_cycles_explicit(in_place=True)
         return hypergraph
@@ -567,16 +569,33 @@ class Hypergraph:
 
         for hyperedge, coords in self.hyperedge_coords.items():
             is_identity = self.hyperedge_labels[hyperedge].startswith('id')
+            is_cap = self.hyperedge_labels[hyperedge].startswith('cap')
+            is_cup = self.hyperedge_labels[hyperedge].startswith('cup')
             box_width = 0 if is_identity else 0.5
             box_height = 0 if is_identity else 0.5
             cx, cy = coords
             x = cx - box_width / 2
             y = cy - box_height / 2
-            ax.add_patch(Rectangle((x, y), box_width, box_height))
-            if not is_identity:
+            ax.add_patch(Rectangle((x, y), box_width, box_height,
+                                   alpha=0 if is_cap or is_cup else 1))
+            if not (is_identity or is_cap or is_cup):
                 ax.annotate(self.hyperedge_labels[hyperedge],
                             (cx, cy),
                             ha='center', va='center')
+
+            if is_cap or is_cup:
+                start_y = cy - 0.4 * box_height
+                end_y = cy + 0.4 * box_height
+                start_x = x + box_width if is_cap else x
+                control_x = x if is_cap else x + box_width
+                path = Path([(start_x, start_y),  # start point
+                             (control_x, start_y),
+                             (control_x, end_y),
+                             (start_x,
+                              end_y)],  # end point
+                            [Path.MOVETO] + [Path.CURVE4] * 3)
+                wire = PathPatch(path, fc='none')
+                ax.add_patch(wire)
 
             sources = self.hyperedge_sources[hyperedge]
             for port, vertex in enumerate(sources):
