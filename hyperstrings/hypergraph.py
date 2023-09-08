@@ -60,9 +60,9 @@ class Hypergraph:
         wires = set()
         for hyperedge in self.hyperedges:
             for port, vertex in enumerate(self.hyperedge_sources[hyperedge]):
-                wires.add((vertex, -port, hyperedge))
+                wires.add((vertex, -(port + 1), hyperedge))
             for port, vertex in enumerate(self.hyperedge_targets[hyperedge]):
-                wires.add((vertex, port, hyperedge))
+                wires.add((vertex, port + 1, hyperedge))
 
     def change_vertex_index(self, vertex: int, new_index: int) -> None:
         """Change the integer identitifier of a vertex."""
@@ -117,7 +117,7 @@ class Hypergraph:
         normal_form = deepcopy(self)
         remove_hyperedges = set()
         for hyperedge in normal_form.hyperedges:
-            if normal_form.hyperedge_labels[hyperedge].startswith('id'):
+            if normal_form.hyperedge_labels[hyperedge].startswith('id_'):
                 source_vertex = normal_form.hyperedge_sources[hyperedge][0]
                 target_vertex = normal_form.hyperedge_targets[hyperedge][0]
                 normal_form.vertex_targets[source_vertex].remove(
@@ -667,6 +667,94 @@ class Hypergraph:
 
         # TODO: keep track of labels
         return yarrow_diagram
+
+    @classmethod
+    def from_discopy(cls, discopy_diagram) -> Hypergraph:
+        """Create a hypergraph from a discopy diagram."""
+        discopy_hypergraph = discopy_diagram.to_hypergraph()
+
+        vertices: set[int] = set(discopy_hypergraph.wires)
+        inputs = [*range(max(vertices) + 1,
+                         max(vertices) + 1 + len(discopy_hypergraph.dom))]
+        vertices.update(inputs)
+        outputs = [*range(max(vertices) + 1,
+                          max(vertices) + 1 + len(discopy_hypergraph.cod))]
+        vertices.update(outputs)
+        hyperedges = set(range(len(discopy_hypergraph.boxes)
+                               + len(inputs) + len(outputs)))
+
+        vertex_sources: dict[int, set[tuple[int, int]]] = {
+            vertex: set() for vertex in vertices
+        }
+        vertex_targets: dict[int, set[tuple[int, int]]] = {
+            vertex: set() for vertex in vertices
+        }
+        hyperedge_sources: dict[int, list[int]] = {
+            hyperedge: [] for hyperedge in hyperedges
+        }
+        hyperedge_targets: dict[int, list[int]] = {
+            hyperedge: [] for hyperedge in hyperedges
+        }
+        max_internal_spider = max(discopy_hypergraph.wires)
+        vertex_labels = {
+            vertex: discopy_hypergraph.spider_types[vertex].name
+            for vertex in vertices if vertex <= max_internal_spider
+        }
+        num_boxes = len(discopy_hypergraph.boxes)
+        hyperedge_labels = {
+            hyperedge: discopy_hypergraph.boxes[hyperedge].name
+            for hyperedge in hyperedges
+            if hyperedge < num_boxes
+        }
+
+        for i, vertex in enumerate(inputs):
+            wire = discopy_hypergraph.wires[i]
+            label = discopy_hypergraph.spider_types[wire].name
+            vertex_labels[vertex] = label
+            hyperedge = len(discopy_hypergraph.boxes) + i
+            vertex_sources[wire].add((hyperedge, 0))
+            vertex_targets[vertex].add((hyperedge, 0))
+            hyperedge_sources[hyperedge].append(vertex)
+            hyperedge_targets[hyperedge].append(wire)
+            hyperedge_labels[hyperedge] = f'id_{label}'
+        for i, vertex in enumerate(outputs):
+            wire = discopy_hypergraph.wires[-len(outputs) + i]
+            label = discopy_hypergraph.spider_types[wire].name
+            vertex_labels[vertex] = label
+            hyperedge = len(discopy_hypergraph.boxes) + len(inputs) + i
+            vertex_sources[vertex].add((hyperedge, 0))
+            vertex_targets[wire].add((hyperedge, 0))
+            hyperedge_sources[hyperedge].append(wire)
+            hyperedge_targets[hyperedge].append(vertex)
+            hyperedge_labels[hyperedge] = f'id_{label}'
+
+        current_wire = len(discopy_hypergraph.dom)
+        for hyperedge, box in enumerate(discopy_hypergraph.boxes):
+            for input_port in range(len(box.dom)):
+                wire = discopy_hypergraph.wires[current_wire]
+                vertex_targets[wire].add((hyperedge, input_port))
+                hyperedge_sources[hyperedge].append(wire)
+                current_wire += 1
+            for output_port in range(len(box.cod)):
+                wire = discopy_hypergraph.wires[current_wire]
+                vertex_sources[wire].add((hyperedge, output_port))
+                hyperedge_targets[hyperedge].append(wire)
+                current_wire += 1
+
+        return cls(
+            vertices,
+            vertex_sources,
+            vertex_targets,
+            vertex_labels,
+
+            hyperedges,
+            hyperedge_sources,
+            hyperedge_targets,
+            hyperedge_labels,
+
+            inputs,
+            outputs
+        ).normal_form
 
     def to_discopy(self, normal_form: bool = True):
         """Create a discopy hypergraph from this hypergraph."""
