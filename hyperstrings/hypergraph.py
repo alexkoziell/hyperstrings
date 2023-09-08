@@ -217,6 +217,63 @@ class Hypergraph:
         """Set the targets of a vertex."""
         self.vertex_targets[vertex] = hyperedges_and_ports
 
+    def is_source_monogamous(self) -> bool:
+        """Check whether this hypergraph is source-monogamous.
+
+        This means that all input vertices have zero sources and all
+        non-input vertices have exactly one source hyperedge.
+        """
+        return all(
+            len(self.vertex_sources[vertex]) == 1
+            if vertex not in self.inputs else
+            len(self.vertex_sources[vertex]) == 0
+            for vertex in self.vertices
+        )
+
+    def is_target_monogamous(self) -> bool:
+        """Check whether this hypergraph is target-monogamous.
+
+        This means that all output vertices have zero targets and all
+        non-output vertices have exactly one target hyperedge.
+        """
+        return all(
+            len(self.vertex_targets[vertex]) == 1
+            if vertex not in self.outputs else
+            len(self.vertex_targets[vertex]) == 0
+            for vertex in self.vertices
+        )
+
+    def is_monogamous(self) -> bool:
+        """Check whether this hypergraph is monogamous.
+
+        This means that all input vertices have zero sources and exactly one
+        target, all output vertices have exactly one source and zero targets,
+        and all other vertices have exactly one source and exactly one target.
+        """
+        is_monogamous = True
+        non_boundary_vertices = self.vertices.difference(
+            self.inputs + self.outputs
+        )
+        # Non-boundary vertices
+        is_monogamous &= all(
+            (len(self.vertex_sources[vertex]) == 1
+             and len(self.vertex_targets[vertex]) == 1)
+            for vertex in non_boundary_vertices
+        )
+        # Input vertices
+        is_monogamous &= all(
+            (len(self.vertex_sources[vertex]) == 0
+             and len(self.vertex_targets[vertex]) == 1)
+            for vertex in self.inputs
+        )
+        # Output vertices
+        is_monogamous &= all(
+            (len(self.vertex_sources[vertex]) == 1
+             and len(self.vertex_targets[vertex]) == 0)
+            for vertex in self.outputs
+        )
+        return is_monogamous
+
     def layer_decomposition(self) -> list[list[int]]:
         """Decompose this hypergraph into layers.
 
