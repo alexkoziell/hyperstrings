@@ -274,6 +274,39 @@ class Hypergraph:
         )
         return is_monogamous
 
+    def make_spiders_explicit(self, in_place: bool = False) -> Hypergraph:
+        """Make all non-monogamous vertices into explicit hyperedges.
+
+        The resulting hypergraph is monogamous.
+        """
+        hypergraph = self if in_place else deepcopy(self)
+        vertices = hypergraph.vertices.copy()
+        for vertex in vertices:
+            sources = hypergraph.vertex_sources[vertex]
+            targets = hypergraph.vertex_targets[vertex]
+            if len(sources) > 1 or len(targets) > 1:
+                label = self.vertex_labels[vertex]
+                spider = hypergraph.add_hyperedge(
+                    f'spider_{label}_{len(sources)}_{len(targets)}')
+                for i, (hyperedge, port) in enumerate(sources):
+                    new_vertex = hypergraph.add_vertex(label)
+                    hypergraph.vertex_sources[new_vertex].add(
+                        (hyperedge, port))
+                    hypergraph.vertex_targets[new_vertex].add(
+                        (spider, i))
+                    hypergraph.hyperedge_targets[hyperedge][port] = new_vertex
+                    hypergraph.hyperedge_sources[spider].append(new_vertex)
+                for i, (hyperedge, port) in enumerate(targets):
+                    new_vertex = hypergraph.add_vertex(label)
+                    hypergraph.vertex_targets[new_vertex].add(
+                        (hyperedge, port))
+                    hypergraph.vertex_sources[new_vertex].add(
+                        (spider, i))
+                    hypergraph.hyperedge_sources[hyperedge][port] = new_vertex
+                    hypergraph.hyperedge_targets[spider].append(new_vertex)
+                hypergraph.remove_vertex(vertex)
+        return hypergraph
+
     def children(self, vertex: int,
                  visited_children: set[int] | None = None) -> set[int]:
         """Return the set of children of a vertex."""
