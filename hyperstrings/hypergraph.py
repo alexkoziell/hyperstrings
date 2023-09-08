@@ -411,15 +411,23 @@ class Hypergraph:
             y += 1
         x += 1
 
-    def draw_matplotlib(self, figsize: tuple[int, int] = (5, 3)):
+        for vertex in self.inputs:
+            x, y = self.vertex_coords[vertex]
+            self.vertex_coords[vertex] = (x - 1, y)
+        for vertex in self.outputs:
+            x, y = self.vertex_coords[vertex]
+            self.vertex_coords[vertex] = (x + 1, y)
+
+    def draw_matplotlib(self, figsize: tuple[int, int] = (8, 4)):
         """Draw the hypergraph in matplotlib."""
         self.compute_coordinates()
 
         fig, ax = plt.subplots(figsize=figsize)
 
         for vertex, coords in self.vertex_coords.items():
-            if (len(self.vertex_sources[vertex]) == 1 and
-               len(self.vertex_targets[vertex]) == 1):
+            if ((len(self.vertex_sources[vertex]) == 1 and
+                len(self.vertex_targets[vertex]) == 1)
+                    or vertex in self.inputs + self.outputs):
                 radius = 1e-3
             else:
                 radius = 0.05
