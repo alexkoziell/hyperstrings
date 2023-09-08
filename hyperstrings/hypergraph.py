@@ -221,7 +221,7 @@ class Hypergraph:
         """Check whether this hypergraph is source-monogamous.
 
         This means that all input vertices have zero sources and all
-        non-input vertices have exactly one source hyperedge.
+        non-input vertices have at most one source hyperedge.
         """
         return all(
             len(self.vertex_sources[vertex]) == 1
@@ -234,10 +234,10 @@ class Hypergraph:
         """Check whether this hypergraph is target-monogamous.
 
         This means that all output vertices have zero targets and all
-        non-output vertices have exactly one target hyperedge.
+        non-output vertices have at most one target hyperedge.
         """
         return all(
-            len(self.vertex_targets[vertex]) == 1
+            len(self.vertex_targets[vertex]) <= 1
             if vertex not in self.outputs else
             len(self.vertex_targets[vertex]) == 0
             for vertex in self.vertices
@@ -248,7 +248,7 @@ class Hypergraph:
 
         This means that all input vertices have zero sources and exactly one
         target, all output vertices have exactly one source and zero targets,
-        and all other vertices have exactly one source and exactly one target.
+        and all other vertices have at most one source and at most one target.
         """
         is_monogamous = True
         non_boundary_vertices = self.vertices.difference(
@@ -256,8 +256,8 @@ class Hypergraph:
         )
         # Non-boundary vertices
         is_monogamous &= all(
-            (len(self.vertex_sources[vertex]) == 1
-             and len(self.vertex_targets[vertex]) == 1)
+            (len(self.vertex_sources[vertex]) <= 1
+             and len(self.vertex_targets[vertex]) <= 1)
             for vertex in non_boundary_vertices
         )
         # Input vertices
@@ -304,6 +304,44 @@ class Hypergraph:
                 if vertex in self.children(child_vertex):
                     return False
         return True
+
+    def make_cycles_explicit(self, in_place: bool = False) -> Hypergraph:
+        """Turn cycles into cups and caps.
+
+        Currently, this method requires a monogamous hypergraph.
+        If a cycle exists, introduce a cup, cap and 2 new vertices:
+            - `new vertex 1` has source the cap and target the cup
+            - `new vertex 2` has source the cap and target the old target
+               of vertex for which a cycle was found.
+            - vertex for which cycle was found has the same source but now
+              has the cup as its new target
+        This effectively makes original vertex 1 have no children.
+        """
+        assert self.is_monogamous()
+        hypergraph = self if in_place else deepcopy(self)
+        for vertex in hypergraph.vertices:
+            for child_vertex in hypergraph.children(vertex):
+                if vertex in hypergraph.children(child_vertex):
+                    cap = hypergraph.add_hyperedge(
+                        f'cap_{hypergraph.vertex_labels[vertex]}')
+                    cup = hypergraph.add_hyperedge(
+                        f'cup_{hypergraph.vertex_labels[vertex]}')
+                    new_vertex1 = hypergraph.add_vertex(
+                        hypergraph.vertex_labels[vertex])
+                    new_vertex2 = hypergraph.add_vertex(
+                        hypergraph.vertex_labels[vertex])
+                    (hyperedge, port), = tuple(
+                        hypergraph.vertex_targets[vertex])
+                    hypergraph.vertex_targets[vertex] = {(cup, 1)}
+                    hypergraph.vertex_targets[new_vertex1] = {(cup, 0)}
+                    hypergraph.hyperedge_sources[cup] = [new_vertex1, vertex]
+                    hypergraph.vertex_sources[new_vertex1] = {(cap, 0)}
+                    hypergraph.vertex_sources[new_vertex2] = {(cap, 1)}
+                    hypergraph.hyperedge_targets[cap] = [
+                        new_vertex1, new_vertex2]
+                    hypergraph.hyperedge_sources[hyperedge][port] = new_vertex2
+                    return hypergraph.make_cycles_explicit(in_place=True)
+        return hypergraph
 
     def layer_decomposition(self) -> list[list[int]]:
         """Decompose this hypergraph into layers.
