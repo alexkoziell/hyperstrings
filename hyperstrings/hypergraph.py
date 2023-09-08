@@ -274,6 +274,27 @@ class Hypergraph:
         )
         return is_monogamous
 
+    def children(self, vertex: int,
+                 visited_children: set[int] = set()) -> set[int]:
+        """Return set of children of a vertex."""
+        new_children: set[int] = set()
+        target_hyperedges = set(
+            hyperedge for hyperedge, _ in self.vertex_targets[vertex])
+        for hyperedge in target_hyperedges:
+            new_children.update(
+                child for child in self.hyperedge_targets[hyperedge]
+                if child not in visited_children
+            )
+        # if all vertices in 1-hop neighbourhood already visited, return
+        if len(new_children) == 0:
+            return visited_children
+        else:
+            visited_children.update(new_children)
+            return visited_children.union(
+                *(self.children(vertex, visited_children)
+                  for vertex in new_children)
+            )
+
     def layer_decomposition(self) -> list[list[int]]:
         """Decompose this hypergraph into layers.
 
