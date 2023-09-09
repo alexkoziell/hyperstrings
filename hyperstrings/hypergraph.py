@@ -117,7 +117,7 @@ class Hypergraph:
         normal_form = deepcopy(self)
         remove_hyperedges = set()
         for hyperedge in normal_form.hyperedges:
-            if normal_form.hyperedge_labels[hyperedge].startswith('id_'):
+            if normal_form.hyperedge_labels[hyperedge].startswith('_id_'):
                 source_vertex = normal_form.hyperedge_sources[hyperedge][0]
                 target_vertex = normal_form.hyperedge_targets[hyperedge][0]
                 normal_form.vertex_targets[source_vertex].remove(
@@ -287,7 +287,7 @@ class Hypergraph:
             if len(sources) > 1 or len(targets) > 1:
                 label = self.vertex_labels[vertex]
                 spider = hypergraph.add_hyperedge(
-                    f'spider_{label}_{len(sources)}_{len(targets)}')
+                    f'_spider_{label}_{len(sources)}_{len(targets)}')
                 for i, (hyperedge, port) in enumerate(sources):
                     new_vertex = hypergraph.add_vertex(label)
                     hypergraph.vertex_sources[new_vertex].add(
@@ -356,9 +356,9 @@ class Hypergraph:
             for child_vertex in hypergraph.children(vertex):
                 if vertex in hypergraph.children(child_vertex):
                     cap = hypergraph.add_hyperedge(
-                        f'cap_{hypergraph.vertex_labels[vertex]}')
+                        f'_cap_{hypergraph.vertex_labels[vertex]}')
                     cup = hypergraph.add_hyperedge(
-                        f'cup_{hypergraph.vertex_labels[vertex]}')
+                        f'_cup_{hypergraph.vertex_labels[vertex]}')
                     new_vertex1 = hypergraph.add_vertex(
                         hypergraph.vertex_labels[vertex])
                     new_vertex2 = hypergraph.add_vertex(
@@ -425,7 +425,7 @@ class Hypergraph:
                         unplaced_vertices.add(new_vertex)
                         # Add an identity hyperedge to connect
                         # the orignal vertex to the new vertex
-                        identity = self.add_hyperedge(f'id_{vertex_label}')
+                        identity = self.add_hyperedge(f'_id_{vertex_label}')
 
                         # The only source vertex of this identity hyperedge is
                         # the original vertex that occured in the previous
@@ -460,7 +460,7 @@ class Hypergraph:
                         unplaced_vertices.add(new_vertex)
                         # Add an identity hyperedge to connect
                         # the orignal vertex to the new vertex
-                        identity = self.add_hyperedge(f'id_{vertex_label}')
+                        identity = self.add_hyperedge(f'_id_{vertex_label}')
 
                         # The only source vertex of this identity hyperedge is
                         # the original vertex that occured in the previous
@@ -504,7 +504,7 @@ class Hypergraph:
                         new_vertex = self.add_vertex(vertex_label)
                         # Add an identity hyperedge to connect
                         # the new vertex to the original vertex
-                        identity = self.add_hyperedge(f'id_{vertex_label}')
+                        identity = self.add_hyperedge(f'_id_{vertex_label}')
                         unplaced_hyperedges.add(identity)
 
                         # The only source of the new vertex is a ready
@@ -601,10 +601,10 @@ class Hypergraph:
                         ha='center', va='center')
 
         for hyperedge, coords in self.hyperedge_coords.items():
-            is_identity = self.hyperedge_labels[hyperedge].startswith('id')
-            is_cap = self.hyperedge_labels[hyperedge].startswith('cap_')
-            is_cup = self.hyperedge_labels[hyperedge].startswith('cup_')
-            is_spider = self.hyperedge_labels[hyperedge].startswith('spider_')
+            is_identity = self.hyperedge_labels[hyperedge].startswith('_id_')
+            is_cap = self.hyperedge_labels[hyperedge].startswith('_cap_')
+            is_cup = self.hyperedge_labels[hyperedge].startswith('_cup_')
+            is_spider = self.hyperedge_labels[hyperedge].startswith('_spider_')
             box_width = 0 if is_identity or is_spider else 0.5
             box_height = 0 if is_identity or is_spider else 0.5
             cx, cy = coords
@@ -898,7 +898,7 @@ class Hypergraph:
             vertex_targets[vertex].add((hyperedge, 0))
             hyperedge_sources[hyperedge].append(vertex)
             hyperedge_targets[hyperedge].append(wire)
-            hyperedge_labels[hyperedge] = f'id_{label}'
+            hyperedge_labels[hyperedge] = f'_id_{label}'
         for i, vertex in enumerate(outputs):
             wire = discopy_hypergraph.wires[-len(outputs) + i]
             label = discopy_hypergraph.spider_types[wire].name
@@ -908,7 +908,7 @@ class Hypergraph:
             vertex_targets[wire].add((hyperedge, 0))
             hyperedge_sources[hyperedge].append(wire)
             hyperedge_targets[hyperedge].append(vertex)
-            hyperedge_labels[hyperedge] = f'id_{label}'
+            hyperedge_labels[hyperedge] = f'_id_{label}'
 
         current_wire = len(discopy_hypergraph.dom)
         for hyperedge, box in enumerate(discopy_hypergraph.boxes):
