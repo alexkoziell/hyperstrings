@@ -132,30 +132,32 @@ class Hypergraph:
         normal_form.hyperedge_coords.clear()
         return normal_form
 
-    def quotient_vertices(self, vertex1: int, vertex2: int) -> None:
+    def quotient_vertices(self, *vertices: int) -> None:
         """Merge vertex2 into vertex1."""
-        vertex2_sources = self.vertex_sources.pop(vertex2)
-        vertex2_targets = self.vertex_targets.pop(vertex2)
+        vertex1 = vertices[0]
+        for vertex2 in vertices[1:]:
+            vertex2_sources = self.vertex_sources.pop(vertex2)
+            vertex2_targets = self.vertex_targets.pop(vertex2)
 
-        for hyperedge, port in vertex2_sources:
-            self.hyperedge_targets[hyperedge][port] = vertex1
-        for hyperedge, port in vertex2_targets:
-            self.hyperedge_sources[hyperedge][port] = vertex1
+            for hyperedge, port in vertex2_sources:
+                self.hyperedge_targets[hyperedge][port] = vertex1
+            for hyperedge, port in vertex2_targets:
+                self.hyperedge_sources[hyperedge][port] = vertex1
 
-        self.vertex_sources[vertex1].update(vertex2_sources)
-        self.vertex_targets[vertex1].update(vertex2_targets)
+            self.vertex_sources[vertex1].update(vertex2_sources)
+            self.vertex_targets[vertex1].update(vertex2_targets)
 
-        if vertex2 in self.inputs:
-            self.inputs = [
-                vertex1 if v == vertex2 else v for v in self.inputs
-            ]
-        if vertex2 in self.outputs:
-            self.outputs = [
-                vertex1 if v == vertex2 else v for v in self.outputs
-            ]
+            if vertex2 in self.inputs:
+                self.inputs = [
+                    vertex1 if v == vertex2 else v for v in self.inputs
+                ]
+            if vertex2 in self.outputs:
+                self.outputs = [
+                    vertex1 if v == vertex2 else v for v in self.outputs
+                ]
 
-        self.vertex_labels.pop(vertex2)
-        self.vertices.remove(vertex2)
+            self.vertex_labels.pop(vertex2)
+            self.vertices.remove(vertex2)
 
     def add_vertex(self, label: str) -> int:
         """Add a vertex to the hypergraph."""
@@ -304,7 +306,36 @@ class Hypergraph:
                         (spider, i))
                     hypergraph.hyperedge_sources[hyperedge][port] = new_vertex
                     hypergraph.hyperedge_targets[spider].append(new_vertex)
+                if vertex in hypergraph.inputs:  # assumes zero input spider
+                    new_vertex = hypergraph.add_vertex(label)
+                    hypergraph.vertex_targets[new_vertex].add((spider, 0))
+                    hypergraph.hyperedge_sources[spider].append(new_vertex)
+                    hypergraph.inputs = [new_vertex if v == vertex else v
+                                         for v in hypergraph.inputs]
+                if vertex in hypergraph.outputs:  # assumes zero output spider
+                    new_vertex = hypergraph.add_vertex(label)
+                    hypergraph.vertex_sources[new_vertex].add((spider, 0))
+                    hypergraph.hyperedge_targets[spider].append(new_vertex)
+                    hypergraph.inputs = [new_vertex if v == vertex else v
+                                         for v in hypergraph.outputs]
                 hypergraph.remove_vertex(vertex)
+        return hypergraph
+
+    def make_spiders_implicit(self, in_place: bool = False) -> Hypergraph:
+        """Replace all explicit spider boxes with vertices."""
+        hypergraph = self if in_place else deepcopy(self)
+        spiders = set(
+            hyperedge for hyperedge in hypergraph.hyperedges
+            if hypergraph.hyperedge_labels[hyperedge].startswith('_spider'))
+        for spider in spiders:
+            sources = hypergraph.hyperedge_sources[spider]
+            targets = hypergraph.hyperedge_targets[spider]
+            for port, vertex in enumerate(sources):
+                hypergraph.vertex_targets[vertex].remove((spider, port))
+            for port, vertex in enumerate(targets):
+                hypergraph.vertex_sources[vertex].remove((spider, port))
+            hypergraph.quotient_vertices(*(sources + targets))
+            hypergraph.remove_hyperedge(spider)
         return hypergraph
 
     def children(self, vertex: int,
