@@ -74,6 +74,45 @@ class Hypergraph:
                        for port, vertex
                        in enumerate(self.hyperedge_sources[hyperedge]))
 
+    @classmethod
+    def simple_init(cls,
+                    vertex_labels: dict[int, str],
+                    hyperedge_labels: dict[int, str],
+                    hyperedge_sources: dict[int, list[int]],
+                    hyperedge_targets: dict[int, list[int]],
+                    inputs: list[int],
+                    outputs: list[int]
+                    ):
+        """Create a Hypergraph instance with minimal information."""
+        vertices = set(vertex_labels.keys())
+        hyperedges = set(hyperedge_labels.keys())
+
+        vertex_sources: dict[int, set[tuple[int, int]]]
+        vertex_sources = {vertex: set() for vertex in vertices}
+        vertex_targets: dict[int, set[tuple[int, int]]]
+        vertex_targets = {vertex: set() for vertex in vertices}
+
+        for hyperedge in hyperedges:
+            for port, vertex in enumerate(hyperedge_sources[hyperedge]):
+                vertex_targets[vertex].add((hyperedge, port))
+            for port, vertex in enumerate(hyperedge_targets[hyperedge]):
+                vertex_sources[vertex].add((hyperedge, port))
+
+        return cls(
+            vertices,
+            vertex_sources,
+            vertex_targets,
+            vertex_labels,
+
+            hyperedges,
+            hyperedge_sources,
+            hyperedge_targets,
+            hyperedge_labels,
+
+            inputs,
+            outputs
+        )
+
     def wires(self):
         """Return a set of hyperedge port to vertex connections.
 
