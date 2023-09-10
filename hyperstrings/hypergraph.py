@@ -136,8 +136,8 @@ class Hypergraph:
         """Merge vertex2 into vertex1."""
         vertex1 = vertices[0]
         for vertex2 in vertices[1:]:
-            vertex2_sources = self.vertex_sources.pop(vertex2)
-            vertex2_targets = self.vertex_targets.pop(vertex2)
+            vertex2_sources = self.vertex_sources[vertex2]
+            vertex2_targets = self.vertex_targets[vertex2]
 
             for hyperedge, port in vertex2_sources:
                 self.hyperedge_targets[hyperedge][port] = vertex1
@@ -156,8 +156,7 @@ class Hypergraph:
                     vertex1 if v == vertex2 else v for v in self.outputs
                 ]
 
-            self.vertex_labels.pop(vertex2)
-            self.vertices.remove(vertex2)
+            self.remove_vertex(vertex2)
 
     def add_vertex(self, label: str) -> int:
         """Add a vertex to the hypergraph."""
@@ -567,6 +566,31 @@ class Hypergraph:
 
             layers.append(ready_hyperedges)
             layers.append(ready_vertices)
+
+        # Minimize wire crossings
+        for layer_num, layer in zip(range(1, len(layers)-1), layers[1:-1]):
+            scores: dict[int, float] = {}
+            if layer_num % 2 == 0:  # vertex layer
+                for vertex in layer:
+                    # score = mean position of source hyperedges in
+                    # previous layer
+                    source_hyperedges = self.vertex_sources[vertex]
+                    score = (sum(layers[layer_num - 1].index(hyperedge)
+                                 for hyperedge, _
+                                 in source_hyperedges)
+                             / (len(source_hyperedges) + 1e-12))
+                    scores[vertex] = score
+            else:  # hyperedge layer
+                for hyperedge in layer:
+                    # score = mean position of source vertices in
+                    # previous layer
+                    source_vertices = self.hyperedge_sources[hyperedge]
+                    score = (sum(layers[layer_num - 1].index(vertex)
+                                 for vertex
+                                 in source_vertices)
+                             / (len(source_vertices) + 1e-12))
+                    scores[hyperedge] = score
+            layers[layer_num] = sorted(layer, key=lambda x: scores[x])
 
         return layers
 
