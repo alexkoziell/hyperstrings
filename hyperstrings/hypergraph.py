@@ -111,10 +111,9 @@ class Hypergraph:
             if hyperedge != i:
                 self.change_hyperedge_index(hyperedge, i)
 
-    @property
-    def normal_form(self) -> Hypergraph:
+    def normal_form(self, in_place: bool = False) -> Hypergraph:
         """Remove all identity hyperedges."""
-        normal_form = deepcopy(self)
+        normal_form = self if in_place else deepcopy(self)
         remove_hyperedges = set()
         for hyperedge in normal_form.hyperedges:
             if normal_form.hyperedge_labels[hyperedge].startswith('_id_'):
@@ -848,7 +847,7 @@ class Hypergraph:
     def to_yarrow(self, normal_form: bool = True):
         """Create a yarrow diagram from this hypergraph."""
         from yarrow import FiniteFunction, BipartiteMultigraph, Diagram
-        hypergraph = self.normal_form if normal_form else self
+        hypergraph = self.normal_form() if normal_form else self
         hypergraph.reset_indices()
 
         num_vertices = len(hypergraph.vertices)  # G(W)
@@ -991,14 +990,14 @@ class Hypergraph:
 
             inputs,
             outputs
-        ).normal_form
+        ).normal_form()
 
     def to_discopy(self, normal_form: bool = True):
         """Create a discopy hypergraph from this hypergraph."""
         from discopy.frobenius import Box, Ob, Ty
         from discopy.frobenius import Hypergraph as DCPHypergraph
 
-        hypergraph = self.normal_form if normal_form else self
+        hypergraph = self.normal_form() if normal_form else self
 
         dom = Ty(*(Ob(hypergraph.vertex_labels[vertex])
                    for vertex in hypergraph.inputs))
