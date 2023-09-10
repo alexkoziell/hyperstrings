@@ -47,6 +47,33 @@ class Hypergraph:
     hyperedge_coords: dict[int, tuple[float, float]] = field(
         default_factory=dict)
 
+    def __post_init__(self) -> None:
+        """Perform post-initialization operations."""
+        self.check_consistency()
+
+    def check_consistency(self) -> None:
+        """Check consistency of connectivity information."""
+        assert (self.vertices
+                == set(self.vertex_sources.keys())
+                == set(self.vertex_targets.keys())
+                == set(self.vertex_labels.keys()))
+        assert (self.hyperedges
+                == set(self.hyperedge_sources.keys())
+                == set(self.hyperedge_targets.keys())
+                == set(self.hyperedge_labels.keys()))
+        for vertex in self.vertices:
+            assert all(self.hyperedge_sources[hyperedge][port] == vertex
+                       for hyperedge, port in self.vertex_targets[vertex])
+            assert all(self.hyperedge_targets[hyperedge][port] == vertex
+                       for hyperedge, port in self.vertex_sources[vertex])
+        for hyperedge in self.hyperedges:
+            assert all((hyperedge, port) in self.vertex_sources[vertex]
+                       for port, vertex
+                       in enumerate(self.hyperedge_targets[hyperedge]))
+            assert all((hyperedge, port) in self.vertex_targets[vertex]
+                       for port, vertex
+                       in enumerate(self.hyperedge_sources[hyperedge]))
+
     def wires(self):
         """Return a set of hyperedge port to vertex connections.
 
