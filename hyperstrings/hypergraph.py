@@ -170,18 +170,18 @@ class Hypergraph:
         """Return a set of hyperedge port to vertex connections.
 
         Wires are in the following format:
-            `(vertex, port, hyperedge)`
-        The direction of the wire is given by the sign of `port`: if `port` is
-        negative, the wire connects a vertex to a hyperedge source port. If
-        `port` is positive, the wire connects a hyperedge target port to a
-        vertex.
+            `(vertex, hyperedge, port, direction)`
+        If `direction` is -1, the wire connects a vertex to a hyperedge source
+        port. If `direction` is 1, the wire connects a hyperedge target port
+        to a vertex.
         """
         wires = set()
         for hyperedge in self.hyperedges:
             for port, vertex in enumerate(self.hyperedge_sources[hyperedge]):
-                wires.add((vertex, -(port + 1), hyperedge))
+                wires.add((vertex, hyperedge, port, -1))
             for port, vertex in enumerate(self.hyperedge_targets[hyperedge]):
-                wires.add((vertex, port + 1, hyperedge))
+                wires.add((vertex, hyperedge, port, 1))
+        return wires
 
     def change_vertex_index(self, vertex: int, new_index: int) -> None:
         """Change the integer identitifier of a vertex."""
