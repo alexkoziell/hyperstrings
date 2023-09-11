@@ -51,6 +51,59 @@ class Hypergraph:
         """Perform post-initialization operations."""
         self.check_consistency()
 
+    def sequential_compose(self, other: Hypergraph) -> Hypergraph:
+        """Form the sequential composition self;other."""
+        assert len(self.outputs) == len(other.inputs)
+        assert all(self.vertex_labels[o] == other.vertex_labels[i]
+                   for o, i in zip(self.outputs, other.inputs))
+        composed, other = self.remove_index_collisions(other)
+        old_outputs = composed.outputs.copy()
+        composed.outputs = other.outputs.copy()
+        for o, i in zip(old_outputs, other.inputs.copy()):
+            composed.quotient_vertices(o, i)
+        return composed
+
+    def __rshift__(self, other: Hypergraph) -> Hypergraph:
+        """Sequentially compose `self` with `other`."""
+        return self.sequential_compose(other)
+
+    def parallel_compose(self, other: Hypergraph) -> Hypergraph:
+        """Form the parallel composition self⊗other."""
+        composed, other = self.remove_index_collisions(other)
+        composed.inputs += other.inputs.copy()
+        composed.outputs += other.outputs.copy()
+        return composed
+
+    def __matmul__(self, other: Hypergraph) -> Hypergraph:
+        """Parallel compose `self` with `other`."""
+        return self.parallel_compose(other)
+
+    def remove_index_collisions(self, other: Hypergraph
+                                ) -> tuple[Hypergraph, Hypergraph]:
+        """Change `other`'s vertex indices to avoid collisions with `self`.
+
+        Used for composing hypergraphs.
+        """
+        max_vertex_index = max(self.vertices | other.vertices)
+        max_hyperedge_index = max(self.hyperedges | other.hyperedges)
+        other = deepcopy(other)
+        for i, vertex in enumerate(other.vertices):
+            new_index = max_vertex_index + i + 1
+            other.change_vertex_index(vertex, new_index)
+        for i, hyperedge in enumerate(other.hyperedges):
+            new_index = max_hyperedge_index + i + 1
+            other.change_hyperedge_index(hyperedge, new_index)
+        composed = deepcopy(self)
+        composed.vertices |= other.vertices
+        composed.vertex_sources |= other.vertex_sources
+        composed.vertex_targets |= other.vertex_targets
+        composed.vertex_labels |= other.vertex_labels
+        composed.hyperedges |= other.hyperedges
+        composed.hyperedge_sources |= other.hyperedge_sources
+        composed.hyperedge_targets |= other.hyperedge_targets
+        composed.hyperedge_labels |= other.hyperedge_labels
+        return composed, other
+
     def check_consistency(self) -> None:
         """Check consistency of connectivity information."""
         assert (self.vertices
@@ -633,7 +686,7 @@ class Hypergraph:
             layers.append(ready_vertices)
 
         # Minimize wire crossings
-        for layer_num, layer in zip(range(1, len(layers)-1), layers[1:-1]):
+        for layer_num, layer in zip(range(1, len(layers)), layers[1:]):
             scores: dict[int, float] = {}
             if layer_num % 2 == 0:  # vertex layer
                 for vertex in layer:
@@ -655,7 +708,25 @@ class Hypergraph:
                                  in source_vertices)
                              / (len(source_vertices) + 1e-12))
                     scores[hyperedge] = score
-            layers[layer_num] = sorted(layer, key=lambda x: scores[x])
+            # output order must be preserved
+            if layer_num == len(layers):
+                max_score = max(s for s in scores.values())
+                scores = {k: s/max_score for k, s in scores.items()}
+
+                def output_score(vertex: int) -> float:
+                    if vertex in self.outputs:
+                        score: float = self.outputs.index(vertex) + 1
+                    else:
+                        for i in range(len(self.outputs)):
+                            if scores[vertex] <= self.outputs[i]:
+                                score = i + scores[vertex]
+                                return score
+                        score = len(self.outputs) + scores[vertex]
+                    return score
+
+                layers[layer_num] = sorted(layer, key=output_score)
+            else:
+                layers[layer_num] = sorted(layer, key=lambda x: scores[x])
 
         return layers
 
