@@ -47,10 +47,64 @@ class Hypergraph:
     hyperedge_coords: dict[int, tuple[float, float]] = field(
         default_factory=dict)
 
+    # Class Initialization
+    @classmethod
+    def simple_init(cls,
+                    vertex_labels: dict[int, str],
+                    hyperedge_labels: dict[int, str],
+                    hyperedge_sources: dict[int, list[int]],
+                    hyperedge_targets: dict[int, list[int]],
+                    inputs: list[int], outputs: list[int]
+                    ):
+        """Create a Hypergraph instance with minimal information."""
+        vertices = set(vertex_labels.keys())
+        hyperedges = set(hyperedge_labels.keys())
+
+        vertex_sources: dict[int, set[tuple[int, int]]]
+        vertex_sources = {vertex: set() for vertex in vertices}
+        vertex_targets: dict[int, set[tuple[int, int]]]
+        vertex_targets = {vertex: set() for vertex in vertices}
+
+        for hyperedge in hyperedges:
+            for port, vertex in enumerate(hyperedge_sources[hyperedge]):
+                vertex_targets[vertex].add((hyperedge, port))
+            for port, vertex in enumerate(hyperedge_targets[hyperedge]):
+                vertex_sources[vertex].add((hyperedge, port))
+
+        return cls(
+            vertices, vertex_sources, vertex_targets, vertex_labels,
+            hyperedges, hyperedge_sources, hyperedge_targets, hyperedge_labels,
+            inputs, outputs
+        )
+
     def __post_init__(self) -> None:
         """Perform post-initialization operations."""
         self.check_consistency()
 
+    def check_consistency(self) -> None:
+        """Check consistency of connectivity information."""
+        assert (self.vertices
+                == set(self.vertex_sources.keys())
+                == set(self.vertex_targets.keys())
+                == set(self.vertex_labels.keys()))
+        assert (self.hyperedges
+                == set(self.hyperedge_sources.keys())
+                == set(self.hyperedge_targets.keys())
+                == set(self.hyperedge_labels.keys()))
+        for vertex in self.vertices:
+            assert all(self.hyperedge_sources[hyperedge][port] == vertex
+                       for hyperedge, port in self.vertex_targets[vertex])
+            assert all(self.hyperedge_targets[hyperedge][port] == vertex
+                       for hyperedge, port in self.vertex_sources[vertex])
+        for hyperedge in self.hyperedges:
+            assert all((hyperedge, port) in self.vertex_sources[vertex]
+                       for port, vertex
+                       in enumerate(self.hyperedge_targets[hyperedge]))
+            assert all((hyperedge, port) in self.vertex_targets[vertex]
+                       for port, vertex
+                       in enumerate(self.hyperedge_sources[hyperedge]))
+
+    # Denotational Semantics
     def sequential_compose(self, other: Hypergraph) -> Hypergraph:
         """Form the sequential composition self;other."""
         assert len(self.outputs) == len(other.inputs)
@@ -78,178 +132,6 @@ class Hypergraph:
         """Parallel compose `self` with `other`."""
         return self.parallel_compose(other)
 
-    def remove_index_collisions(self, other: Hypergraph
-                                ) -> tuple[Hypergraph, Hypergraph]:
-        """Change `other`'s vertex indices to avoid collisions with `self`.
-
-        Used for composing hypergraphs.
-        """
-        max_vertex_index = max(self.vertices | other.vertices)
-        max_hyperedge_index = max(self.hyperedges | other.hyperedges)
-        other = deepcopy(other)
-        for i, vertex in enumerate(other.vertices):
-            new_index = max_vertex_index + i + 1
-            other.change_vertex_index(vertex, new_index)
-        for i, hyperedge in enumerate(other.hyperedges):
-            new_index = max_hyperedge_index + i + 1
-            other.change_hyperedge_index(hyperedge, new_index)
-        composed = deepcopy(self)
-        composed.vertices |= other.vertices
-        composed.vertex_sources |= other.vertex_sources
-        composed.vertex_targets |= other.vertex_targets
-        composed.vertex_labels |= other.vertex_labels
-        composed.hyperedges |= other.hyperedges
-        composed.hyperedge_sources |= other.hyperedge_sources
-        composed.hyperedge_targets |= other.hyperedge_targets
-        composed.hyperedge_labels |= other.hyperedge_labels
-        return composed, other
-
-    def check_consistency(self) -> None:
-        """Check consistency of connectivity information."""
-        assert (self.vertices
-                == set(self.vertex_sources.keys())
-                == set(self.vertex_targets.keys())
-                == set(self.vertex_labels.keys()))
-        assert (self.hyperedges
-                == set(self.hyperedge_sources.keys())
-                == set(self.hyperedge_targets.keys())
-                == set(self.hyperedge_labels.keys()))
-        for vertex in self.vertices:
-            assert all(self.hyperedge_sources[hyperedge][port] == vertex
-                       for hyperedge, port in self.vertex_targets[vertex])
-            assert all(self.hyperedge_targets[hyperedge][port] == vertex
-                       for hyperedge, port in self.vertex_sources[vertex])
-        for hyperedge in self.hyperedges:
-            assert all((hyperedge, port) in self.vertex_sources[vertex]
-                       for port, vertex
-                       in enumerate(self.hyperedge_targets[hyperedge]))
-            assert all((hyperedge, port) in self.vertex_targets[vertex]
-                       for port, vertex
-                       in enumerate(self.hyperedge_sources[hyperedge]))
-
-    @classmethod
-    def simple_init(cls,
-                    vertex_labels: dict[int, str],
-                    hyperedge_labels: dict[int, str],
-                    hyperedge_sources: dict[int, list[int]],
-                    hyperedge_targets: dict[int, list[int]],
-                    inputs: list[int],
-                    outputs: list[int]
-                    ):
-        """Create a Hypergraph instance with minimal information."""
-        vertices = set(vertex_labels.keys())
-        hyperedges = set(hyperedge_labels.keys())
-
-        vertex_sources: dict[int, set[tuple[int, int]]]
-        vertex_sources = {vertex: set() for vertex in vertices}
-        vertex_targets: dict[int, set[tuple[int, int]]]
-        vertex_targets = {vertex: set() for vertex in vertices}
-
-        for hyperedge in hyperedges:
-            for port, vertex in enumerate(hyperedge_sources[hyperedge]):
-                vertex_targets[vertex].add((hyperedge, port))
-            for port, vertex in enumerate(hyperedge_targets[hyperedge]):
-                vertex_sources[vertex].add((hyperedge, port))
-
-        return cls(
-            vertices,
-            vertex_sources,
-            vertex_targets,
-            vertex_labels,
-
-            hyperedges,
-            hyperedge_sources,
-            hyperedge_targets,
-            hyperedge_labels,
-
-            inputs,
-            outputs
-        )
-
-    def wires(self):
-        """Return a set of hyperedge port to vertex connections.
-
-        Wires are in the following format:
-            `(vertex, hyperedge, port, direction)`
-        If `direction` is -1, the wire connects a vertex to a hyperedge source
-        port. If `direction` is 1, the wire connects a hyperedge target port
-        to a vertex.
-        """
-        wires = set()
-        for hyperedge in self.hyperedges:
-            for port, vertex in enumerate(self.hyperedge_sources[hyperedge]):
-                wires.add((vertex, hyperedge, port, -1))
-            for port, vertex in enumerate(self.hyperedge_targets[hyperedge]):
-                wires.add((vertex, hyperedge, port, 1))
-        return wires
-
-    def change_vertex_index(self, vertex: int, new_index: int) -> None:
-        """Change the integer identitifier of a vertex."""
-        assert new_index not in self.vertices
-        self.vertices.remove(vertex)
-        self.vertices.add(new_index)
-        self.vertex_sources[new_index] = self.vertex_sources.pop(vertex)
-        self.vertex_targets[new_index] = self.vertex_targets.pop(vertex)
-        self.vertex_labels[new_index] = self.vertex_labels.pop(vertex)
-        for hyperedge, port in self.vertex_sources[new_index]:
-            self.hyperedge_targets[hyperedge][port] = new_index
-        for hyperedge, port in self.vertex_targets[new_index]:
-            self.hyperedge_sources[hyperedge][port] = new_index
-        if vertex in self.inputs:
-            self.inputs = [new_index if v == vertex else v
-                           for v in self.inputs]
-        if vertex in self.outputs:
-            self.outputs = [new_index if v == vertex else v
-                            for v in self.outputs]
-
-    def change_hyperedge_index(self, hyperedge: int, new_index: int) -> None:
-        """Change the integer identitifier of a hyperedge."""
-        assert new_index not in self.hyperedges
-        self.hyperedges.remove(hyperedge)
-        self.hyperedges.add(new_index)
-        sources = self.hyperedge_sources.pop(hyperedge)
-        targets = self.hyperedge_targets.pop(hyperedge)
-        self.hyperedge_sources[new_index] = sources
-        self.hyperedge_targets[new_index] = targets
-        self.hyperedge_labels[new_index] = self.hyperedge_labels.pop(hyperedge)
-        for port, vertex in enumerate(sources):
-            self.vertex_targets[vertex].remove((hyperedge, port))
-            self.vertex_targets[vertex].add((new_index, port))
-        for port, vertex in enumerate(targets):
-            self.vertex_sources[vertex].remove((hyperedge, port))
-            self.vertex_sources[vertex].add((new_index, port))
-
-    def reset_indices(self) -> None:
-        """Reset vertex and hyperedge identifiers to make them contigious."""
-        vertices = sorted(self.vertices)
-        for i, vertex in enumerate(vertices):
-            if vertex != i:
-                self.change_vertex_index(vertex, i)
-        hyperedges = sorted(self.hyperedges)
-        for i, hyperedge in enumerate(hyperedges):
-            if hyperedge != i:
-                self.change_hyperedge_index(hyperedge, i)
-
-    def normal_form(self, in_place: bool = False) -> Hypergraph:
-        """Remove all identity hyperedges."""
-        normal_form = self if in_place else deepcopy(self)
-        remove_hyperedges = set()
-        for hyperedge in normal_form.hyperedges:
-            if normal_form.hyperedge_labels[hyperedge].startswith('_id_'):
-                source_vertex = normal_form.hyperedge_sources[hyperedge][0]
-                target_vertex = normal_form.hyperedge_targets[hyperedge][0]
-                normal_form.vertex_targets[source_vertex].remove(
-                    (hyperedge, 0))
-                normal_form.vertex_sources[target_vertex].remove(
-                    (hyperedge, 0))
-                normal_form.quotient_vertices(source_vertex, target_vertex)
-                remove_hyperedges.add(hyperedge)
-        for hyperedge in remove_hyperedges:
-            normal_form.remove_hyperedge(hyperedge)
-        normal_form.vertex_coords.clear()
-        normal_form.hyperedge_coords.clear()
-        return normal_form
-
     def quotient_vertices(self, *vertices: int) -> None:
         """Merge vertex2 into vertex1."""
         vertex1 = vertices[0]
@@ -276,6 +158,95 @@ class Hypergraph:
 
             self.remove_vertex(vertex2)
 
+    def is_source_monogamous(self) -> bool:
+        """Check whether this hypergraph is source-monogamous.
+
+        This means that all input vertices have zero sources and all
+        non-input vertices have at most one source hyperedge.
+        """
+        return all(
+            len(self.vertex_sources[vertex]) == 1
+            if vertex not in self.inputs else
+            len(self.vertex_sources[vertex]) == 0
+            for vertex in self.vertices
+        )
+
+    def is_target_monogamous(self) -> bool:
+        """Check whether this hypergraph is target-monogamous.
+
+        This means that all output vertices have zero targets and all
+        non-output vertices have at most one target hyperedge.
+        """
+        return all(
+            len(self.vertex_targets[vertex]) <= 1
+            if vertex not in self.outputs else
+            len(self.vertex_targets[vertex]) == 0
+            for vertex in self.vertices
+        )
+
+    def is_monogamous(self) -> bool:
+        """Check whether this hypergraph is monogamous.
+
+        This means that all input vertices have zero sources and exactly one
+        target, all output vertices have exactly one source and zero targets,
+        and all other vertices have at most one source and at most one target.
+        """
+        is_monogamous = True
+        non_boundary_vertices = self.vertices.difference(
+            self.inputs + self.outputs
+        )
+        # Non-boundary vertices
+        is_monogamous &= all(
+            (len(self.vertex_sources[vertex]) <= 1
+             and len(self.vertex_targets[vertex]) <= 1)
+            for vertex in non_boundary_vertices
+        )
+        # Input vertices
+        is_monogamous &= all(
+            (len(self.vertex_sources[vertex]) == 0
+             and len(self.vertex_targets[vertex]) == 1)
+            for vertex in self.inputs
+        )
+        # Output vertices
+        is_monogamous &= all(
+            (len(self.vertex_sources[vertex]) == 1
+             and len(self.vertex_targets[vertex]) == 0)
+            for vertex in self.outputs
+        )
+        return is_monogamous
+
+    def children(self, vertex: int,
+                 visited_children: set[int] | None = None) -> set[int]:
+        """Return the set of children of a vertex."""
+        if visited_children is None:
+            visited_children = set()
+        new_children: set[int] = set()
+        target_hyperedges = set(
+            hyperedge for hyperedge, _ in self.vertex_targets[vertex])
+        for hyperedge in target_hyperedges:
+            new_children.update(
+                child for child in self.hyperedge_targets[hyperedge]
+                if child not in visited_children
+            )
+        # if all vertices in 1-hop neighbourhood already visited, return
+        if len(new_children) == 0:
+            return visited_children
+        else:
+            visited_children.update(new_children)
+            return visited_children.union(
+                *(self.children(vertex, visited_children)
+                  for vertex in new_children)
+            )
+
+    def is_acyclic(self) -> bool:
+        """Return whether this hypergraph is acyclic."""
+        for vertex in self.vertices:
+            for child_vertex in self.children(vertex):
+                if vertex in self.children(child_vertex):
+                    return False
+        return True
+
+    # Data structure manipulation - Add, remove, connectivity
     def add_vertex(self, label: str) -> int:
         """Add a vertex to the hypergraph."""
         # Give the vertex a unique integer identifier
@@ -336,62 +307,117 @@ class Hypergraph:
         """Set the targets of a vertex."""
         self.vertex_targets[vertex] = hyperedges_and_ports
 
-    def is_source_monogamous(self) -> bool:
-        """Check whether this hypergraph is source-monogamous.
+    def wires(self):
+        """Return a set of hyperedge port to vertex connections.
 
-        This means that all input vertices have zero sources and all
-        non-input vertices have at most one source hyperedge.
+        Wires are in the following format:
+            `(vertex, hyperedge, port, direction)`
+        If `direction` is -1, the wire connects a vertex to a hyperedge source
+        port. If `direction` is 1, the wire connects a hyperedge target port
+        to a vertex.
         """
-        return all(
-            len(self.vertex_sources[vertex]) == 1
-            if vertex not in self.inputs else
-            len(self.vertex_sources[vertex]) == 0
-            for vertex in self.vertices
-        )
+        wires = set()
+        for hyperedge in self.hyperedges:
+            for port, vertex in enumerate(self.hyperedge_sources[hyperedge]):
+                wires.add((vertex, hyperedge, port, -1))
+            for port, vertex in enumerate(self.hyperedge_targets[hyperedge]):
+                wires.add((vertex, hyperedge, port, 1))
+        return wires
 
-    def is_target_monogamous(self) -> bool:
-        """Check whether this hypergraph is target-monogamous.
+    # Data structure manipulation - indices
+    def reset_indices(self) -> None:
+        """Reset vertex and hyperedge identifiers to make them contigious."""
+        vertices = sorted(self.vertices)
+        for i, vertex in enumerate(vertices):
+            if vertex != i:
+                self.change_vertex_index(vertex, i)
+        hyperedges = sorted(self.hyperedges)
+        for i, hyperedge in enumerate(hyperedges):
+            if hyperedge != i:
+                self.change_hyperedge_index(hyperedge, i)
 
-        This means that all output vertices have zero targets and all
-        non-output vertices have at most one target hyperedge.
+    def change_vertex_index(self, vertex: int, new_index: int) -> None:
+        """Change the integer identitifier of a vertex."""
+        assert new_index not in self.vertices
+        self.vertices.remove(vertex)
+        self.vertices.add(new_index)
+        self.vertex_sources[new_index] = self.vertex_sources.pop(vertex)
+        self.vertex_targets[new_index] = self.vertex_targets.pop(vertex)
+        self.vertex_labels[new_index] = self.vertex_labels.pop(vertex)
+        for hyperedge, port in self.vertex_sources[new_index]:
+            self.hyperedge_targets[hyperedge][port] = new_index
+        for hyperedge, port in self.vertex_targets[new_index]:
+            self.hyperedge_sources[hyperedge][port] = new_index
+        if vertex in self.inputs:
+            self.inputs = [new_index if v == vertex else v
+                           for v in self.inputs]
+        if vertex in self.outputs:
+            self.outputs = [new_index if v == vertex else v
+                            for v in self.outputs]
+
+    def change_hyperedge_index(self, hyperedge: int, new_index: int) -> None:
+        """Change the integer identitifier of a hyperedge."""
+        assert new_index not in self.hyperedges
+        self.hyperedges.remove(hyperedge)
+        self.hyperedges.add(new_index)
+        sources = self.hyperedge_sources.pop(hyperedge)
+        targets = self.hyperedge_targets.pop(hyperedge)
+        self.hyperedge_sources[new_index] = sources
+        self.hyperedge_targets[new_index] = targets
+        self.hyperedge_labels[new_index] = self.hyperedge_labels.pop(hyperedge)
+        for port, vertex in enumerate(sources):
+            self.vertex_targets[vertex].remove((hyperedge, port))
+            self.vertex_targets[vertex].add((new_index, port))
+        for port, vertex in enumerate(targets):
+            self.vertex_sources[vertex].remove((hyperedge, port))
+            self.vertex_sources[vertex].add((new_index, port))
+
+    def remove_index_collisions(self, other: Hypergraph
+                                ) -> tuple[Hypergraph, Hypergraph]:
+        """Change `other`'s vertex indices to avoid collisions with `self`.
+
+        Used for composing hypergraphs.
         """
-        return all(
-            len(self.vertex_targets[vertex]) <= 1
-            if vertex not in self.outputs else
-            len(self.vertex_targets[vertex]) == 0
-            for vertex in self.vertices
-        )
+        max_vertex_index = max(self.vertices | other.vertices)
+        max_hyperedge_index = max(self.hyperedges | other.hyperedges)
+        other = deepcopy(other)
+        for i, vertex in enumerate(other.vertices):
+            new_index = max_vertex_index + i + 1
+            other.change_vertex_index(vertex, new_index)
+        for i, hyperedge in enumerate(other.hyperedges):
+            new_index = max_hyperedge_index + i + 1
+            other.change_hyperedge_index(hyperedge, new_index)
+        composed = deepcopy(self)
+        composed.vertices |= other.vertices
+        composed.vertex_sources |= other.vertex_sources
+        composed.vertex_targets |= other.vertex_targets
+        composed.vertex_labels |= other.vertex_labels
+        composed.hyperedges |= other.hyperedges
+        composed.hyperedge_sources |= other.hyperedge_sources
+        composed.hyperedge_targets |= other.hyperedge_targets
+        composed.hyperedge_labels |= other.hyperedge_labels
+        return composed, other
 
-    def is_monogamous(self) -> bool:
-        """Check whether this hypergraph is monogamous.
-
-        This means that all input vertices have zero sources and exactly one
-        target, all output vertices have exactly one source and zero targets,
-        and all other vertices have at most one source and at most one target.
-        """
-        is_monogamous = True
-        non_boundary_vertices = self.vertices.difference(
-            self.inputs + self.outputs
-        )
-        # Non-boundary vertices
-        is_monogamous &= all(
-            (len(self.vertex_sources[vertex]) <= 1
-             and len(self.vertex_targets[vertex]) <= 1)
-            for vertex in non_boundary_vertices
-        )
-        # Input vertices
-        is_monogamous &= all(
-            (len(self.vertex_sources[vertex]) == 0
-             and len(self.vertex_targets[vertex]) == 1)
-            for vertex in self.inputs
-        )
-        # Output vertices
-        is_monogamous &= all(
-            (len(self.vertex_sources[vertex]) == 1
-             and len(self.vertex_targets[vertex]) == 0)
-            for vertex in self.outputs
-        )
-        return is_monogamous
+    # Explicit and implicit identities, spiders, caps and cups
+    def normal_form(self, in_place: bool = False) -> Hypergraph:
+        """Remove all identity hyperedges."""
+        normal_form = self if in_place else deepcopy(self)
+        remove_hyperedges = set()
+        for hyperedge in normal_form.hyperedges:
+            if normal_form.hyperedge_labels[hyperedge].startswith('_id_'):
+                source_vertex = normal_form.hyperedge_sources[hyperedge][0]
+                target_vertex = normal_form.hyperedge_targets[hyperedge][0]
+                normal_form.vertex_targets[source_vertex].remove(
+                    (hyperedge, 0))
+                normal_form.vertex_sources[target_vertex].remove(
+                    (hyperedge, 0))
+                normal_form.quotient_vertices(source_vertex, target_vertex)
+                remove_hyperedges.add(hyperedge)
+        for hyperedge in remove_hyperedges:
+            normal_form.remove_hyperedge(hyperedge)
+        normal_form.vertex_coords.clear()
+        normal_form.hyperedge_coords.clear()
+        return normal_form
 
     def make_spiders_explicit(self, in_place: bool = False) -> Hypergraph:
         """Make all non-monogamous vertices into explicit hyperedges.
@@ -455,37 +481,6 @@ class Hypergraph:
             hypergraph.remove_hyperedge(spider)
         return hypergraph
 
-    def children(self, vertex: int,
-                 visited_children: set[int] | None = None) -> set[int]:
-        """Return the set of children of a vertex."""
-        if visited_children is None:
-            visited_children = set()
-        new_children: set[int] = set()
-        target_hyperedges = set(
-            hyperedge for hyperedge, _ in self.vertex_targets[vertex])
-        for hyperedge in target_hyperedges:
-            new_children.update(
-                child for child in self.hyperedge_targets[hyperedge]
-                if child not in visited_children
-            )
-        # if all vertices in 1-hop neighbourhood already visited, return
-        if len(new_children) == 0:
-            return visited_children
-        else:
-            visited_children.update(new_children)
-            return visited_children.union(
-                *(self.children(vertex, visited_children)
-                  for vertex in new_children)
-            )
-
-    def is_acyclic(self) -> bool:
-        """Return whether this hypergraph is acyclic."""
-        for vertex in self.vertices:
-            for child_vertex in self.children(vertex):
-                if vertex in self.children(child_vertex):
-                    return False
-        return True
-
     def make_cycles_explicit(self, in_place: bool = False) -> Hypergraph:
         """Turn cycles into cups and caps.
 
@@ -526,6 +521,7 @@ class Hypergraph:
                     return hypergraph.make_cycles_explicit(in_place=True)
         return hypergraph
 
+    # Layer decomposition, drawing and printing
     def layer_decomposition(self) -> list[list[int]]:
         """Decompose this hypergraph into layers.
 
@@ -909,6 +905,7 @@ class Hypergraph:
 
         return term_decomposition
 
+    # Transpiliation
     @classmethod
     def from_yarrow(cls, yarrow_diagram) -> Hypergraph:
         """Create a hypergraph from a yarrow diagram."""
