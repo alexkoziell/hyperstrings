@@ -20,15 +20,25 @@ from hyperstrings.hypergraph.immutable import Array
 from hyperstrings.hypergraph.immutable import backend
 from hyperstrings.hypergraph.immutable import Hyperedge, Vertex
 from hyperstrings.hypergraph.immutable import Label
-from hyperstrings.hypergraph.mutable import MutableHypergraph
+from hyperstrings.hypergraph.generator import GeneratorHypergraph
 
 
-class DrawableHypergraph(MutableHypergraph):
+class DrawableHypergraph(GeneratorHypergraph):
     """Drawable hypergraph implementation."""
 
-    def __init__(self) -> None:
+    def __init__(self,
+                 sources: Array = backend.zeros((0, 0, 1),
+                                                dtype=backend.int32),
+                 targets: Array = backend.zeros((0, 0, 1),
+                                                dtype=backend.int32),
+                 vertex_labels: Array = backend.zeros((0), dtype=Label),
+                 hyperedge_labels: Array = backend.zeros((0), dtype=Label),
+                 inputs: list[Vertex] = [],
+                 outputs: list[Vertex] = []) -> None:
         """Initialize a `DrawableHypergraph` Instance."""
-        super().__init__()
+        super().__init__(sources, targets,
+                         vertex_labels, hyperedge_labels,
+                         inputs, outputs)
         self.vertex_coords: Array = backend.zeros((self.num_vertices(), 2))
         self.hyperedge_coords: Array = backend.zeros(
             (self.num_hyperedges(), 2))
