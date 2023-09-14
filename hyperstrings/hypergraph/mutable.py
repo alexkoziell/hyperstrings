@@ -15,10 +15,10 @@
 from hyperstrings.hypergraph.immutable import backend
 from hyperstrings.hypergraph.immutable import Hyperedge, Vertex
 from hyperstrings.hypergraph.immutable import Label, Port
-from hyperstrings.hypergraph.immutable import ImmutableHypergraph
+from hyperstrings.hypergraph.properties import PropertiesHypergraph
 
 
-class MutableHypergraph(ImmutableHypergraph):
+class MutableHypergraph(PropertiesHypergraph):
     """Mutable hypergraph implementation."""
 
     def add_vertex(self, label: Label) -> Vertex:
@@ -37,7 +37,7 @@ class MutableHypergraph(ImmutableHypergraph):
         )
         self.vertex_labels = backend.concat((self.vertex_labels,
                                              backend.array([label])))
-        return self.num_vertices()
+        return self.num_vertices() - 1
 
     def add_hyperedge(self, label: Label) -> Vertex:
         """Add a hyperedge to the hypergraph."""
@@ -55,7 +55,7 @@ class MutableHypergraph(ImmutableHypergraph):
         )
         self.hyperedge_labels = backend.concat((self.hyperedge_labels,
                                                 backend.array([label])))
-        return self.num_hyperedges()
+        return self.num_hyperedges() - 1
 
     def remove_vertices(self, vertices: list[Vertex]) -> None:
         """Remove vertices from the hypergraph."""
@@ -84,7 +84,7 @@ class MutableHypergraph(ImmutableHypergraph):
                     self.sources[hyperedge, :, port])
                 raise ValueError(
                     f'Vertex {already_connected} already connected'
-                    + f'to source port {port} of hyperedge {hyperedge}.')
+                    + f' to source port {port} of hyperedge {hyperedge}.')
         elif port >= self.max_source_ports():
             self.sources = backend.concat(
                 (self.sources,
@@ -103,7 +103,7 @@ class MutableHypergraph(ImmutableHypergraph):
                     self.targets[:, hyperedge, port])
                 raise ValueError(
                     f'Vertex {already_connected} already connected'
-                    + f'to target port {port} of hyperedge {hyperedge}.')
+                    + f' to target port {port} of hyperedge {hyperedge}.')
         elif port >= self.max_target_ports():
             self.targets = backend.concat(
                 (self.targets,
@@ -120,7 +120,7 @@ class MutableHypergraph(ImmutableHypergraph):
                 or self.sources[hyperedge, vertex, port] == 0):
             raise ValueError(
                 f'Vertex {vertex} already disconnected'
-                + f'from source port {port} of hyperedge {hyperedge}.')
+                + f' from source port {port} of hyperedge {hyperedge}.')
         self.sources[hyperedge, vertex, port] = 0
 
     def disconnect_target(self, vertex: Vertex,
@@ -130,5 +130,5 @@ class MutableHypergraph(ImmutableHypergraph):
                 or self.targets[vertex, hyperedge, port] == 0):
             raise ValueError(
                 f'Vertex {vertex} already disconnected'
-                + f'from target port {port} of hyperedge {hyperedge}.')
+                + f' from target port {port} of hyperedge {hyperedge}.')
         self.targets[vertex, hyperedge, port] = 0
