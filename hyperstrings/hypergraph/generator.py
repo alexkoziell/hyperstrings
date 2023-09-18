@@ -54,7 +54,8 @@ class GeneratorHypergraph(MutableHypergraph):
         sources[0, :len(input_labels)] = backend.eye(len(input_labels))
         targets[len(input_labels):, 0] = backend.eye(len(output_labels))
         inputs = list(range(len(input_labels)))
-        outputs = list(range(len(input_labels), len(output_labels)))
+        outputs = list(range(len(input_labels),
+                             len(input_labels) + len(output_labels)))
         return cls(
             sources,
             targets,
