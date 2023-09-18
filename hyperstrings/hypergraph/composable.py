@@ -15,10 +15,10 @@
 from __future__ import annotations
 from hyperstrings.hypergraph.immutable import backend
 from hyperstrings.hypergraph.immutable import Vertex
-from hyperstrings.hypergraph.mutable import MutableHypergraph
+from hyperstrings.hypergraph.generator import GeneratorHypergraph
 
 
-class ComposableHypergraph(MutableHypergraph):
+class ComposableHypergraph(GeneratorHypergraph):
     """Composable hypergraph class."""
 
     def combine(self, other: ComposableHypergraph) -> ComposableHypergraph:
