@@ -12,6 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 """Mutable hypergraph class."""
+from typing import Sequence
+
 from hyperstrings.hypergraph.immutable import backend
 from hyperstrings.hypergraph.immutable import Hyperedge, Vertex
 from hyperstrings.hypergraph.immutable import Label, Port
@@ -57,23 +59,25 @@ class MutableHypergraph(PropertiesHypergraph):
                                                 backend.array([label])))
         return self.num_hyperedges() - 1
 
-    def remove_vertices(self, vertices: list[Vertex]) -> None:
+    def remove_vertices(self, vertices: Sequence[Vertex]) -> None:
         """Remove vertices from the hypergraph."""
         keep_vertices = [v for v in self.vertices()
                          if v not in vertices]
         self.sources = self.sources.take(keep_vertices, axis=1)
         self.targets = self.targets.take(keep_vertices, axis=0)
-        self.vertex_labels = self.vertex_labels.take(keep_vertices)
-        self.inputs = [i for i in self.inputs if i not in vertices]
-        self.outputs = [i for i in self.outputs if i not in vertices]
+        self.vertex_labels = self.vertex_labels[keep_vertices]
+        self.inputs = [i - len([v for v in vertices if v < i])
+                       for i in self.inputs if i not in vertices]
+        self.outputs = [o - len([v for v in vertices if v < o])
+                        for o in self.outputs if o not in vertices]
 
-    def remove_hyperedges(self, hyperedges: list[Hyperedge]) -> None:
+    def remove_hyperedges(self, hyperedges: Sequence[Hyperedge]) -> None:
         """Remove hyperedges from the hypergraph."""
         keep_hyperedges = [h for h in self.hyperedges()
                            if h not in hyperedges]
         self.sources = self.sources.take(keep_hyperedges, axis=0)
         self.targets = self.targets.take(keep_hyperedges, axis=1)
-        self.hyperedge_labels = self.hyperedge_labels.take(keep_hyperedges)
+        self.hyperedge_labels = self.hyperedge_labels[keep_hyperedges]
 
     def connect_source(self, vertex: Vertex,
                        hyperedge: Hyperedge, port: Port) -> None:

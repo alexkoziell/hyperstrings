@@ -12,18 +12,18 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 """Hypergraph drawing implementation."""
+from typing import Sequence
+
 from matplotlib.patches import Circle, PathPatch, Rectangle  # type: ignore
 from matplotlib.path import Path  # type: ignore
 import matplotlib.pyplot as plt  # type: ignore
 
-from hyperstrings.hypergraph.immutable import Array
-from hyperstrings.hypergraph.immutable import backend
 from hyperstrings.hypergraph.immutable import Hyperedge, Vertex
-from hyperstrings.hypergraph.immutable import Label
-from hyperstrings.hypergraph.generator import GeneratorHypergraph
+from hyperstrings.hypergraph.composable import ComposableHypergraph
+from hyperstrings.hypergraph.immutable import Array, Label, backend
 
 
-class DrawableHypergraph(GeneratorHypergraph):
+class DrawableHypergraph(ComposableHypergraph):
     """Drawable hypergraph implementation."""
 
     def __init__(self,
@@ -31,10 +31,10 @@ class DrawableHypergraph(GeneratorHypergraph):
                                                 dtype=backend.int32),
                  targets: Array = backend.zeros((0, 0, 1),
                                                 dtype=backend.int32),
-                 vertex_labels: Array = backend.zeros((0), dtype=Label),
-                 hyperedge_labels: Array = backend.zeros((0), dtype=Label),
-                 inputs: list[Vertex] = [],
-                 outputs: list[Vertex] = []) -> None:
+                 vertex_labels: Array = backend.array([], dtype=Label),
+                 hyperedge_labels: Array = backend.array([], dtype=Label),
+                 inputs=[],
+                 outputs=[]) -> None:
         """Initialize a `DrawableHypergraph` Instance."""
         super().__init__(sources, targets,
                          vertex_labels, hyperedge_labels,
@@ -55,18 +55,18 @@ class DrawableHypergraph(GeneratorHypergraph):
             (self.hyperedge_coords, backend.zeros((1, 2))))
         return super().add_hyperedge(label)
 
-    def remove_vertices(self, vertices: list[Vertex]) -> None:
+    def remove_vertices(self, vertices: Sequence[Vertex]) -> None:
         """Remove vertices from the hypergraph."""
         keep_vertices = [v for v in self.vertices()
                          if v not in vertices]
-        self.vertex_coords = self.vertex_coords.take(keep_vertices)
+        self.vertex_coords = self.vertex_coords[keep_vertices]
         return super().remove_vertices(vertices)
 
-    def remove_hyperedges(self, hyperedges: list[Hyperedge]) -> None:
+    def remove_hyperedges(self, hyperedges: Sequence[Hyperedge]) -> None:
         """Remove hyperedges from the hypergraph."""
         keep_hyperedges = [h for h in self.hyperedges()
                            if h not in hyperedges]
-        self.hyperedge_coords = self.hyperedge_coords.take(keep_hyperedges)
+        self.hyperedge_coords = self.hyperedge_coords[keep_hyperedges]
         return super().remove_hyperedges(hyperedges)
 
     def layer_decomposition(self) -> list[list[Vertex | Hyperedge]]:

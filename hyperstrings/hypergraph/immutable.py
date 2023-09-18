@@ -54,24 +54,23 @@ class ImmutableHypergraph:
             contains labels indicating extra information about each hyperedge
     """
 
-    def __init__(self) -> None:
+    def __init__(self,
+                 sources: Array = backend.zeros((0, 0, 1),
+                                                dtype=backend.int32),
+                 targets: Array = backend.zeros((0, 0, 1),
+                                                dtype=backend.int32),
+                 vertex_labels: Array = backend.array([], dtype=Label),
+                 hyperedge_labels: Array = backend.array([], dtype=Label),
+                 inputs=[],
+                 outputs=[]
+                 ) -> None:
         """Initialize a `Hypergraph` instance."""
-        num_vertices: int = 0
-        num_hyperedges: int = 0
-        max_source_port: int = 0
-        max_target_port: int = 0
-        self.sources: Array = backend.zeros(
-            (num_hyperedges, num_vertices, max_source_port + 1),
-            dtype=backend.int32)
-        self.targets: Array = backend.zeros(
-            (num_vertices, num_hyperedges, max_target_port + 1),
-            dtype=backend.int32)
-        self.vertex_labels: Array = backend.zeros(
-            (num_vertices), dtype=Label)
-        self.hyperedge_labels: Array = backend.zeros(
-            (num_hyperedges), dtype=Label)
-        self.inputs: list[Vertex] = []
-        self.outputs: list[Vertex] = []
+        self.sources = sources
+        self.targets = targets
+        self.vertex_labels = vertex_labels
+        self.hyperedge_labels = hyperedge_labels
+        self.inputs = inputs
+        self.outputs = outputs
 
     def num_vertices(self) -> int:
         """Return the number of vertices in the hypergraph."""
