@@ -12,8 +12,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 """Hypergraph drawing implementation."""
-from typing import Sequence
-
 from matplotlib.patches import Circle, PathPatch, Rectangle  # type: ignore
 from matplotlib.path import Path  # type: ignore
 import matplotlib.pyplot as plt  # type: ignore
@@ -55,19 +53,19 @@ class DrawableHypergraph(ComposableHypergraph):
             (self.hyperedge_coords, backend.zeros((1, 2))))
         return super().add_hyperedge(label)
 
-    def remove_vertices(self, vertices: Sequence[Vertex]) -> None:
+    def remove_vertices(self, *vertices: Vertex) -> None:
         """Remove vertices from the hypergraph."""
         keep_vertices = [v for v in self.vertices()
                          if v not in vertices]
         self.vertex_coords = self.vertex_coords[keep_vertices]
-        return super().remove_vertices(vertices)
+        return super().remove_vertices(*vertices)
 
-    def remove_hyperedges(self, hyperedges: Sequence[Hyperedge]) -> None:
+    def remove_hyperedges(self, *hyperedges: Hyperedge) -> None:
         """Remove hyperedges from the hypergraph."""
         keep_hyperedges = [h for h in self.hyperedges()
                            if h not in hyperedges]
         self.hyperedge_coords = self.hyperedge_coords[keep_hyperedges]
-        return super().remove_hyperedges(hyperedges)
+        return super().remove_hyperedges(*hyperedges)
 
     def compute_coordinates(self):
         """Compute x and y coordinates based on a layer decomposition.

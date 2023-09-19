@@ -12,8 +12,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 """Mutable hypergraph class."""
-from typing import Sequence
-
 from hyperstrings.hypergraph.backend import backend
 from hyperstrings.hypergraph.backend import Vertex, Hyperedge, Port, Label
 from hyperstrings.hypergraph.immutable import ImmutableHypergraph
@@ -58,19 +56,19 @@ class MutableHypergraph(ImmutableHypergraph):
                                                 backend.array([label])))
         return self.num_hyperedges() - 1
 
-    def remove_vertices(self, vertices: Sequence[Vertex]) -> None:
+    def remove_vertices(self, *vertices: Vertex) -> None:
         """Remove vertices from the hypergraph."""
         keep_vertices = [v for v in self.vertices()
                          if v not in vertices]
-        self.sources = self.sources.take(keep_vertices, axis=1)
-        self.targets = self.targets.take(keep_vertices, axis=0)
+        self.sources = self.sources[:, keep_vertices, :]
+        self.targets = self.targets[keep_vertices]
         self.vertex_labels = self.vertex_labels[keep_vertices]
         self.inputs = [i - len([v for v in vertices if v < i])
                        for i in self.inputs if i not in vertices]
         self.outputs = [o - len([v for v in vertices if v < o])
                         for o in self.outputs if o not in vertices]
 
-    def remove_hyperedges(self, hyperedges: Sequence[Hyperedge]) -> None:
+    def remove_hyperedges(self, *hyperedges: Hyperedge) -> None:
         """Remove hyperedges from the hypergraph."""
         keep_hyperedges = [h for h in self.hyperedges()
                            if h not in hyperedges]

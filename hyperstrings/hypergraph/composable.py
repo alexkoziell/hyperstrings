@@ -13,6 +13,7 @@
 #    limitations under the License.
 """Composition and decomposition methods for hypergraphs."""
 from __future__ import annotations
+from copy import deepcopy
 
 from hyperstrings.hypergraph.backend import backend
 from hyperstrings.hypergraph.backend import Vertex, Hyperedge
@@ -107,7 +108,7 @@ class ComposableHypergraph(MutableHypergraph):
                        for v in self.inputs]
         self.outputs = [vertices[0] if v in vertices else v
                         for v in self.outputs]
-        self.remove_vertices(vertices[1:])
+        self.remove_vertices(*vertices[1:])
 
     def layer_decomposition(self) -> list[list[Vertex | Hyperedge]]:
         """Decompose the hypergraph into layers."""
@@ -279,3 +280,32 @@ class ComposableHypergraph(MutableHypergraph):
                 layers[layer_num] = sorted(layer, key=lambda x: scores[x])
 
         return layers
+
+    def explicit_spiders(self) -> ComposableHypergraph:
+        """Return equivalent hypergraph with spiders as explicit boxes."""
+        hypergraph = deepcopy(self)
+        remove_vertices = []
+        for vertex in hypergraph.vertices():
+            label = hypergraph.vertex_labels[vertex]
+            num_sources = backend.sum(hypergraph.targets[vertex])
+            num_targets = backend.sum(hypergraph.sources[:, vertex, :])
+            if num_sources > 1 or num_targets > 1:  # is a spider
+                spider = hypergraph.add_hyperedge(
+                    f'_spider_{label}:{num_sources}->{num_targets}')
+                src_port = 0
+                for src_hyperedge, port in hypergraph.vertex_sources(vertex):
+                    new_vertex = hypergraph.add_vertex(label)
+                    hypergraph.disconnect_target(vertex, src_hyperedge, port)
+                    hypergraph.connect_target(new_vertex, src_hyperedge, port)
+                    hypergraph.connect_source(new_vertex, spider, src_port)
+                    src_port += 1
+                tgt_port = 0
+                for tgt_hyperedge, port in hypergraph.vertex_targets(vertex):
+                    new_vertex = hypergraph.add_vertex(label)
+                    hypergraph.disconnect_source(vertex, tgt_hyperedge, port)
+                    hypergraph.connect_source(new_vertex, tgt_hyperedge, port)
+                    hypergraph.connect_target(new_vertex, spider, tgt_port)
+                    tgt_port += 1
+                remove_vertices.append(vertex)
+        hypergraph.remove_vertices(*remove_vertices)
+        return hypergraph
