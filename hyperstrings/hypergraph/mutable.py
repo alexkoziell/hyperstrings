@@ -14,13 +14,12 @@
 """Mutable hypergraph class."""
 from typing import Sequence
 
-from hyperstrings.hypergraph.immutable import backend
-from hyperstrings.hypergraph.immutable import Hyperedge, Vertex
-from hyperstrings.hypergraph.immutable import Label, Port
-from hyperstrings.hypergraph.properties import PropertiesHypergraph
+from hyperstrings.hypergraph.backend import backend
+from hyperstrings.hypergraph.backend import Vertex, Hyperedge, Port, Label
+from hyperstrings.hypergraph.immutable import ImmutableHypergraph
 
 
-class MutableHypergraph(PropertiesHypergraph):
+class MutableHypergraph(ImmutableHypergraph):
     """Mutable hypergraph implementation."""
 
     def add_vertex(self, label: Label) -> Vertex:

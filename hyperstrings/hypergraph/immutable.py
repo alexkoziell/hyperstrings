@@ -12,18 +12,11 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 """Immutable hypergraph class."""
-from typing import Iterable, TypeAlias
+from __future__ import annotations
+from typing import Iterable
 
-import numpy as np
-
-backend = np
-backend.concat = backend.concatenate
-Array: TypeAlias = np.ndarray
-
-Vertex: TypeAlias = int
-Hyperedge: TypeAlias = int
-Port: TypeAlias = int
-Label: TypeAlias = str
+from hyperstrings.hypergraph.backend import backend, Array
+from hyperstrings.hypergraph.backend import Vertex, Hyperedge, Port, Label
 
 """
 NOTE: avoiding data-dependent output in `nonzero`
@@ -35,7 +28,7 @@ https://data-apis.org
 
 
 class ImmutableHypergraph:
-    """Immutable Hypergraph implementation.
+    """Hypergraph implementation with non-mutating methods.
 
     Array usage follows Array API standard.
 
@@ -65,6 +58,8 @@ class ImmutableHypergraph:
                  outputs=[]
                  ) -> None:
         """Initialize a `Hypergraph` instance."""
+        assert sources.shape[0] == targets.shape[1]
+        assert sources.shape[1] == targets.shape[0]
         self.sources = sources
         self.targets = targets
         self.vertex_labels = vertex_labels
@@ -135,3 +130,78 @@ class ImmutableHypergraph:
         targets = backend.argmax(self.targets[:, hyperedge, :], axis=0)
         targets = targets[:self.num_target_ports(hyperedge)]
         return targets
+
+    def is_source_monogamous(self) -> bool:
+        """Return whether this hypergraph is source-monogamous.
+
+        This means that any vertex has at most one input wire.
+        """
+        return backend.all(backend.sum(self.targets, axis=(1, 2)) <= 1)
+
+    def is_target_monogamous(self) -> bool:
+        """Return whether this hypergraph is source-monogamous.
+
+        This means that any vertex has at most one output wire.
+        """
+        return backend.all(backend.sum(self.sources, axis=(0, 2)) <= 1)
+
+    def is_monogamous(self) -> bool:
+        """Return whether this hypergraph is monogamous.
+
+        This means that any vertex has at most one input wire and at most
+        one output wire.
+        """
+        return self.is_source_monogamous() and self.is_target_monogamous()
+
+    def children(self, vertex: Vertex) -> set[Vertex]:
+        """Return the children of vertex."""
+        transition_matrix = backend.matmul(
+            backend.any(self.targets, axis=2),
+            backend.any(self.sources, axis=2)
+        )
+        vertex_vector = backend.zeros(self.num_vertices())
+        vertex_vector[vertex] = 1
+        children: set[Vertex] = set()
+        while True:
+            vertex_vector = transition_matrix @ vertex_vector
+            new_children = set(
+                vertex for vertex, is_child in enumerate(vertex_vector)
+                if is_child and vertex not in children
+            )
+            if len(new_children) == 0:
+                break
+            children.update(new_children)
+        return children
+
+    def is_cyclic(self) -> bool:
+        """Return whether this hypergraph contains any cycles."""
+        for vertex in self.vertices():
+            if vertex in self.children(vertex):
+                return True
+        return False
+
+    @classmethod
+    def generator(cls, input_labels: list[Label],
+                  output_labels: list[Label],
+                  label: Label) -> ImmutableHypergraph:
+        """Create a generator with inputs, outputs and a label."""
+        vertex_labels = backend.array([
+            label for label in input_labels + output_labels])
+        hyperedge_labels = backend.array([label])
+        sources = backend.zeros((1, len(vertex_labels),
+                                 len(input_labels)))
+        targets = backend.zeros((len(vertex_labels), 1,
+                                 len(output_labels)))
+        sources[0, :len(input_labels)] = backend.eye(len(input_labels))
+        targets[len(input_labels):, 0] = backend.eye(len(output_labels))
+        inputs = list(range(len(input_labels)))
+        outputs = list(range(len(input_labels),
+                             len(input_labels) + len(output_labels)))
+        return cls(
+            sources,
+            targets,
+            vertex_labels,
+            hyperedge_labels,
+            inputs,
+            outputs
+        )
