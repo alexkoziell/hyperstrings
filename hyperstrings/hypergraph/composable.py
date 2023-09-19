@@ -309,3 +309,17 @@ class ComposableHypergraph(MutableHypergraph):
                 remove_vertices.append(vertex)
         hypergraph.remove_vertices(*remove_vertices)
         return hypergraph
+
+    def implicit_spiders(self) -> ComposableHypergraph:
+        """Return equivalent hypergraph with explicit spiders as vertices."""
+        hypergraph = deepcopy(self)
+        remove_hyperedges = []
+        for hyperedge in hypergraph.hyperedges():
+            if hypergraph.hyperedge_labels[hyperedge].startswith('_spider'):
+                source_vertices = hypergraph.hyperedge_sources(hyperedge)
+                target_vertices = hypergraph.hyperedge_targets(hyperedge)
+                hypergraph.quotient_vertices(*source_vertices,
+                                             *target_vertices)
+                remove_hyperedges.append(hyperedge)
+        hypergraph.remove_hyperedges(*remove_hyperedges)
+        return hypergraph

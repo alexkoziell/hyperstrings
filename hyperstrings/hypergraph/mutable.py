@@ -72,8 +72,8 @@ class MutableHypergraph(ImmutableHypergraph):
         """Remove hyperedges from the hypergraph."""
         keep_hyperedges = [h for h in self.hyperedges()
                            if h not in hyperedges]
-        self.sources = self.sources.take(keep_hyperedges, axis=0)
-        self.targets = self.targets.take(keep_hyperedges, axis=1)
+        self.sources = self.sources[keep_hyperedges]
+        self.targets = self.targets[:, keep_hyperedges, :]
         self.hyperedge_labels = self.hyperedge_labels[keep_hyperedges]
 
     def connect_source(self, vertex: Vertex,
