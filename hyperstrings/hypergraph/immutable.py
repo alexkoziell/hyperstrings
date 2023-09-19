@@ -83,6 +83,14 @@ class ImmutableHypergraph:
         """Return max number of hyperedge target ports in the hypergraph."""
         return self.targets.shape[2]
 
+    def num_vertex_sources(self, vertex: Vertex) -> int:
+        """Return the number of sources of `vertex`."""
+        return self.targets[vertex].sum()
+
+    def num_vertex_targets(self, vertex: Vertex) -> int:
+        """Return the number of targets of `vertex`."""
+        return self.sources[:, vertex, :].sum()
+
     def num_source_ports(self, hyperedge: Hyperedge) -> int:
         """Return the number of source ports of `hyperedge`."""
         hyperedge_sources = self.sources[hyperedge, :, :]

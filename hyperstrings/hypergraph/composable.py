@@ -287,8 +287,8 @@ class ComposableHypergraph(MutableHypergraph):
         remove_vertices = []
         for vertex in hypergraph.vertices():
             label = hypergraph.vertex_labels[vertex]
-            num_sources = backend.sum(hypergraph.targets[vertex])
-            num_targets = backend.sum(hypergraph.sources[:, vertex, :])
+            num_sources = hypergraph.num_vertex_sources(vertex)
+            num_targets = hypergraph.num_vertex_targets(vertex)
             if num_sources > 1 or num_targets > 1:  # is a spider
                 spider = hypergraph.add_hyperedge(
                     f'_spider_{label}:{num_sources}->{num_targets}')
