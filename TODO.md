@@ -1,5 +1,5 @@
 # TODO
-- [ ] explicit/implicit spiders
+- [x] explicit/implicit spiders
 - [ ] explicit/implicit caps/cups
 - [ ] matching and rewriting
 - [ ] functor
