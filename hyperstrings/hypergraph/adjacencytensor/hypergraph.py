@@ -12,7 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 """Top level hypergraph class."""
-from hyperstrings.hypergraph.drawable import DrawableHypergraph
+from hyperstrings.hypergraph.adjacencytensor.drawable import DrawableHypergraph
 
 
 class Hypergraph(DrawableHypergraph):

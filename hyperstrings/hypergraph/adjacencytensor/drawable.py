@@ -16,9 +16,11 @@ from matplotlib.patches import Circle, PathPatch, Rectangle  # type: ignore
 from matplotlib.path import Path  # type: ignore
 import matplotlib.pyplot as plt  # type: ignore
 
-from hyperstrings.hypergraph.backend import backend, Array
-from hyperstrings.hypergraph.backend import Vertex, Hyperedge, Label
-from hyperstrings.hypergraph.composable import ComposableHypergraph
+from hyperstrings.hypergraph.adjacencytensor.backend import backend, Array
+from hyperstrings.hypergraph.adjacencytensor.backend import (
+    Vertex, Hyperedge, Label)
+from hyperstrings.hypergraph.adjacencytensor.composable import (
+    ComposableHypergraph)
 
 
 class DrawableHypergraph(ComposableHypergraph):

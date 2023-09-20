@@ -15,9 +15,9 @@
 from __future__ import annotations
 from copy import deepcopy
 
-from hyperstrings.hypergraph.backend import backend
-from hyperstrings.hypergraph.backend import Vertex, Hyperedge
-from hyperstrings.hypergraph.mutable import MutableHypergraph
+from hyperstrings.hypergraph.adjacencytensor.backend import backend
+from hyperstrings.hypergraph.adjacencytensor.backend import Vertex, Hyperedge
+from hyperstrings.hypergraph.adjacencytensor.mutable import MutableHypergraph
 
 
 class ComposableHypergraph(MutableHypergraph):

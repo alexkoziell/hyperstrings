@@ -15,8 +15,9 @@
 from __future__ import annotations
 from typing import Iterable
 
-from hyperstrings.hypergraph.backend import backend, Array
-from hyperstrings.hypergraph.backend import Vertex, Hyperedge, Port, Label
+from hyperstrings.hypergraph.adjacencytensor.backend import backend, Array
+from hyperstrings.hypergraph.adjacencytensor.backend import (
+    Vertex, Hyperedge, Port, Label)
 
 """
 NOTE: avoiding data-dependent output in `nonzero`

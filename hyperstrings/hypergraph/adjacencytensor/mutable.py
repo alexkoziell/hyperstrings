@@ -12,9 +12,11 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 """Mutable hypergraph class."""
-from hyperstrings.hypergraph.backend import backend
-from hyperstrings.hypergraph.backend import Vertex, Hyperedge, Port, Label
-from hyperstrings.hypergraph.immutable import ImmutableHypergraph
+from hyperstrings.hypergraph.adjacencytensor.backend import backend
+from hyperstrings.hypergraph.adjacencytensor.backend import (
+    Vertex, Hyperedge, Port, Label)
+from hyperstrings.hypergraph.adjacencytensor.immutable import (
+    ImmutableHypergraph)
 
 
 class MutableHypergraph(ImmutableHypergraph):
