@@ -76,44 +76,47 @@ class DrawableHypergraph(ComposableHypergraph):
         Vertices and hyperedges in the same layer are spaced a
         unit y-coordinate apart.
         """
-        layers = self.layer_decomposition()
+        hypergraph, layers = self.explicit_cycles().layer_decomposition()
+
         x = len(layers) / 2
         for vertex_layer, hyperedge_layer in zip(layers[::2], layers[1::2]):
             y = -len(vertex_layer) / 2
             for vertex in vertex_layer:
-                self.vertex_coords[vertex] = (x, y)
+                hypergraph.vertex_coords[vertex] = (x, y)
                 y += 1
             x += 1
 
             y = -len(hyperedge_layer) / 2
             for hyperedge in hyperedge_layer:
-                self.hyperedge_coords[hyperedge] = (x, y)
+                hypergraph.hyperedge_coords[hyperedge] = (x, y)
                 y += 1
             x += 1
 
         y = -len(layers[-1]) / 2
         for vertex in layers[-1]:
-            self.vertex_coords[vertex] = (x, y)
+            hypergraph.vertex_coords[vertex] = (x, y)
             y += 1
         x += 1
 
-        for vertex in self.inputs:
-            x, y = self.vertex_coords[vertex]
-            self.vertex_coords[vertex] = (x - 1, y)
-        for vertex in self.outputs:
-            x, y = self.vertex_coords[vertex]
-            self.vertex_coords[vertex] = (x + 1, y)
+        for vertex in hypergraph.inputs:
+            x, y = hypergraph.vertex_coords[vertex]
+            hypergraph.vertex_coords[vertex] = (x - 1, y)
+        for vertex in hypergraph.outputs:
+            x, y = hypergraph.vertex_coords[vertex]
+            hypergraph.vertex_coords[vertex] = (x + 1, y)
+
+        return hypergraph
 
     def draw_matplotlib(self, figsize: tuple[int, int] = (8, 4)):
         """Draw the hypergraph in matplotlib."""
-        self.compute_coordinates()
+        hypergraph = self.compute_coordinates()
 
         fig, ax = plt.subplots(figsize=figsize)
 
-        for vertex, coords in enumerate(self.vertex_coords):
-            if ((len(self.vertex_sources(vertex)) == 1 and
-                len(self.vertex_targets(vertex)) == 1)
-                    or vertex in self.inputs + self.outputs):
+        for vertex, coords in enumerate(hypergraph.vertex_coords):
+            if ((len(hypergraph.vertex_sources(vertex)) == 1 and
+                len(hypergraph.vertex_targets(vertex)) == 1)
+                    or vertex in hypergraph.inputs + hypergraph.outputs):
                 radius = 1e-3
             else:
                 radius = 0.05
@@ -121,15 +124,16 @@ class DrawableHypergraph(ComposableHypergraph):
             ax.add_patch(Circle(coords, radius, fc='black'))
             x, y = coords
             y -= 0.1
-            ax.annotate(self.vertex_labels[vertex],
+            ax.annotate(hypergraph.vertex_labels[vertex],
                         (x, y),
                         ha='center', va='center')
 
-        for hyperedge, coords in enumerate(self.hyperedge_coords):
-            is_identity = self.hyperedge_labels[hyperedge].startswith('_id_')
-            is_cap = self.hyperedge_labels[hyperedge].startswith('_cap_')
-            is_cup = self.hyperedge_labels[hyperedge].startswith('_cup_')
-            is_spider = self.hyperedge_labels[hyperedge].startswith('_spider_')
+        for hyperedge, coords in enumerate(hypergraph.hyperedge_coords):
+            label = hypergraph.hyperedge_labels[hyperedge]
+            is_identity = label.startswith('_id_')
+            is_cap = label.startswith('_cap_')
+            is_cup = label.startswith('_cup_')
+            is_spider = label.startswith('_spider_')
             box_width = 0 if is_identity or is_spider else 0.5
             box_height = 0 if is_identity or is_spider else 0.5
             cx, cy = coords
@@ -141,7 +145,7 @@ class DrawableHypergraph(ComposableHypergraph):
                 ax.add_patch(Rectangle((x, y), box_width, box_height,
                                        alpha=0 if is_cap or is_cup else 1))
             if not (is_identity or is_cap or is_cup or is_spider):
-                ax.annotate(self.hyperedge_labels[hyperedge],
+                ax.annotate(hypergraph.hyperedge_labels[hyperedge],
                             (cx, cy),
                             ha='center', va='center')
 
@@ -159,9 +163,9 @@ class DrawableHypergraph(ComposableHypergraph):
                 wire = PathPatch(path, fc='none')
                 ax.add_patch(wire)
 
-            sources = self.hyperedge_sources(hyperedge)
+            sources = hypergraph.hyperedge_sources(hyperedge)
             for port, vertex in enumerate(sources):
-                start_x, start_y = self.vertex_coords[vertex]
+                start_x, start_y = hypergraph.vertex_coords[vertex]
                 end_x = cx - box_width / 2
                 if len(sources) > 1:
                     end_y = cy + (
@@ -181,7 +185,7 @@ class DrawableHypergraph(ComposableHypergraph):
                 wire = PathPatch(path, fc='none')
                 ax.add_patch(wire)
 
-            targets = self.hyperedge_targets(hyperedge)
+            targets = hypergraph.hyperedge_targets(hyperedge)
             for port, vertex in enumerate(targets):
                 start_x = cx + box_width / 2
                 if len(targets) > 1:
@@ -191,7 +195,7 @@ class DrawableHypergraph(ComposableHypergraph):
                     )
                 else:
                     start_y = cy
-                end_x, end_y = self.vertex_coords[vertex]
+                end_x, end_y = hypergraph.vertex_coords[vertex]
                 dx = abs(start_x - end_x)
 
                 # Create the Path object for the cubic Bezier curve
